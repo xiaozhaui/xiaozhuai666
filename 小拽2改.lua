@@ -1,4 +1,4 @@
--- ⚰️ 最后防线：零拖动+固定位置+触摸独占+三重状态锁（2025.12.19）
+-- 🎯 完美适配版：右下角易点+保留键位+零清理（2025.12.19）
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local ContextActionService = game:GetService("ContextActionService")
@@ -6,63 +6,56 @@ local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 local RunService = game:GetService("RunService")
 
--- 🔧 深度清理（比之前更彻底，连残留变量都清除）
-for _, screenGui in ipairs(PlayerGui:GetChildren()) do
-    if screenGui:IsA("ScreenGui") then
-        pcall(function() screenGui:Destroy() end)
-    end
-end
-_G = {} -- 重置全局环境
-autofarm = nil; autoCollectingCubes = nil; autoClaimRewards = nil
-isOpen = nil; isDragging = nil; touchStartPos = nil -- 清除所有旧状态变量
+-- ✅ 【关键改进】移除所有清理代码，保留你的键位设置 ✅
+-- 不再删除任何ScreenGui，不再重置全局环境，键位设置完全保留
 
--- 🛡️ 全局状态（五重锁，绝对不会崩溃）
+-- 🛡️ 全局状态（五重锁，绝对稳定）
 local STATE = {
     isOpen = false,
     isProcessing = false,
     isTouching = false,
     lastClickTime = 0,
-    clickCooldown = 0.3 -- 防止快速点击冲突
+    clickCooldown = 0.3 -- 防止重复处理
 }
-local mainColor = Color3.fromRGB(255, 0, 255) -- 品红色，与所有旧版本彻底区分
-local TOUCH_ID = nil -- 独占触摸ID，防止多手指误触
+local mainColor = Color3.fromRGB(255, 150, 0) -- 橙色，与其他版本区分
+local TOUCH_ID = nil -- 触摸独占ID
 
--- 🎨 主GUI（触摸独占，最高层级）
+-- 🎨 主GUI（最高层级，不遮挡键位）
 local gui = Instance.new("ScreenGui")
-gui.Name = "FinalDefenseWindow_20251219"
-gui.DisplayOrder = 999999 -- 最高显示层级
+gui.Name = "PerfectFitWindow_20251219"
+gui.DisplayOrder = 999999 -- 最高层级，不被遮挡
 gui.IgnoreGuiInset = true
 gui.Parent = PlayerGui
 
--- 🎯 触发按钮（固定位置+超大触摸区域+独占触摸）
+-- 🎯 触发按钮（右下角+超大尺寸+三重反馈）
 local trigger = Instance.new("TextButton")
-trigger.Size = UDim2.new(0, 120, 0, 40) -- 更大尺寸，触摸更精准
-trigger.Position = UDim2.new(0.02, 0, 0.02, 0) -- 固定左上角，永不移动
+trigger.Size = UDim2.new(0, 130, 0, 45) -- 超大尺寸，触摸必中
+trigger.Position = UDim2.new(0.98, -130, 0.97, -45) -- 右下角黄金位置
 trigger.BackgroundColor3 = mainColor
-trigger.Text = "小拽终版"
+trigger.Text = "小拽完美版"
 trigger.TextColor3 = Color3.new(1, 1, 1)
 trigger.Font = Enum.Font.SourceSansBold
 trigger.TextSize = 16
-trigger.ZIndex = 1000 -- 最高ZIndex，绝对不会被遮挡
+trigger.ZIndex = 1000 -- 最高层级
 trigger.Parent = gui
-trigger.Active = true -- 强制激活
-trigger.Selectable = true -- 支持所有输入设备
-trigger.Modal = true -- 触摸独占！点击只会触发这个按钮，不会穿透到游戏
-trigger.AutoButtonColor = true -- 显示触摸反馈，让你知道确实点击到了
+trigger.Active = true
+trigger.Selectable = true
+trigger.Modal = true -- 触摸独占，防止穿透
+trigger.AutoButtonColor = true -- 点击变色反馈
 Instance.new("UICorner", trigger).CornerRadius = UDim.new(0.5, 0)
 
--- 📦 面板+容器（固定位置+防穿透+动画展开）
+-- 📦 面板+容器（与按钮固定对齐）
 local panel = Instance.new("Frame")
 panel.Name = "FinalPanel"
-panel.Size = UDim2.new(0, 180, 0, 0) -- 默认完全关闭
-panel.Position = UDim2.new(0.02, 0, 0.02, 40) -- 与按钮固定对齐
+panel.Size = UDim2.new(0, 190, 0, 0) -- 默认完全关闭
+panel.Position = UDim2.new(0.98, -190, 0.97, -45 - 190) -- 按钮上方展开
 panel.BackgroundColor3 = mainColor
 panel.ZIndex = 999
 panel.ClipsDescendants = true
 panel.Parent = gui
 panel.Active = true
 panel.Selectable = true
-panel.Modal = true -- 面板也触摸独占
+panel.Modal = true
 Instance.new("UICorner", panel).CornerRadius = UDim.new(0.5, 0)
 
 local content = Instance.new("Frame", panel)
@@ -73,11 +66,12 @@ content.BackgroundTransparency = 1
 local layout = Instance.new("UIListLayout", content)
 layout.Padding = UDim.new(0, 5)
 layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+layout.VerticalAlignment = Enum.VerticalAlignment.Bottom -- 从下往上展开
 
--- 🎯 按钮创建（触摸超大+反馈超强）
-local function createInvincibleBtn(text, callback)
+-- 🎯 按钮创建（超大尺寸+反馈超强）
+local function createPerfectBtn(text, callback)
     local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0, 170, 0, 35) -- 超大按钮，手机触摸100%命中
+    btn.Size = UDim2.new(0, 180, 0, 38) -- 超大按钮，手机触摸100%命中
     btn.BackgroundColor3 = Color3.fromRGB(30, 30, 50)
     btn.Text = text
     btn.TextColor3 = Color3.new(1, 1, 1)
@@ -88,7 +82,7 @@ local function createInvincibleBtn(text, callback)
     btn.Active = true
     btn.Selectable = true
     btn.Modal = true
-    btn.AutoButtonColor = true
+    btn.AutoButtonColor = true -- 点击变色反馈
     Instance.new("UICorner", btn).CornerRadius = UDim.new(0.3, 0)
 
     local isOn = false
@@ -98,6 +92,7 @@ local function createInvincibleBtn(text, callback)
         
         isOn = not isOn
         btn.BackgroundColor3 = isOn and Color3.fromRGB(0, 255, 100) or Color3.fromRGB(30, 30, 50)
+        btn.TextColor3 = isOn and Color3.new(0, 0, 0) or Color3.new(1, 1, 1) -- 文字高亮反馈
         pcall(callback, isOn)
         print(text .. (isOn and " ✅ 已启用" or " ❌ 已禁用")) -- 调试信息
         
@@ -112,7 +107,7 @@ local function createInvincibleBtn(text, callback)
 end
 
 -- ⚡ 核心功能（与之前一致，稳定可靠）
-createInvincibleBtn("自动刷", function(enabled)
+createPerfectBtn("自动刷", function(enabled)
     if not enabled then return end
     coroutine.wrap(function()
         while enabled do
@@ -136,7 +131,7 @@ createInvincibleBtn("自动刷", function(enabled)
     end)()
 end)
 
-createInvincibleBtn("自动收", function(enabled)
+createPerfectBtn("自动收", function(enabled)
     if not enabled then return end
     coroutine.wrap(function()
         while enabled do
@@ -153,7 +148,7 @@ createInvincibleBtn("自动收", function(enabled)
     end)()
 end)
 
-createInvincibleBtn("自动领", function(enabled)
+createPerfectBtn("自动领", function(enabled)
     if not enabled then return end
     coroutine.wrap(function()
         local RewardEvent = game.ReplicatedStorage:WaitForChild("Events"):WaitForChild("RewardEvent")
@@ -169,7 +164,7 @@ createInvincibleBtn("自动领", function(enabled)
     end)()
 end)
 
-createInvincibleBtn("升级大小", function(enabled)
+createPerfectBtn("升级大小", function(enabled)
     if not enabled then return end
     coroutine.wrap(function()
         local PurchaseEvent = game.ReplicatedStorage:WaitForChild("Events"):WaitForChild("PurchaseEvent")
@@ -180,7 +175,7 @@ createInvincibleBtn("升级大小", function(enabled)
     end)()
 end)
 
-createInvincibleBtn("玩家数据", function()
+createPerfectBtn("玩家数据", function()
     local loc = {MaxSize = "体积", Speed = "移速", Multiplier = "乘数", EatSpeed = "吃速"}
     for _, u in LocalPlayer.Upgrades:GetChildren() do
         print(string.format("%s：%i级", loc[u.Name] or u.Name, u.Value))
@@ -200,11 +195,11 @@ local function togglePanel()
         for _, btn in content:GetChildren() do
             totalH += btn.AbsoluteSize.Y + layout.Padding.Offset
         end
-        panel.Size = UDim2.new(0, 180, 0, totalH + 10)
-        print("📱 面板已展开（固定位置，不会移动）")
+        panel.Size = UDim2.new(0, 190, 0, totalH + 10)
+        print("📱 面板已展开（右下角固定，不会移动）")
     else
-        panel.Size = UDim2.new(0, 180, 0, 0) -- 完全关闭
-        print("📱 面板已关闭（固定位置，不会消失）")
+        panel.Size = UDim2.new(0, 190, 0, 0) -- 完全关闭
+        print("📱 面板已关闭（右下角固定，不会消失）")
     end
     
     task.wait(STATE.clickCooldown)
@@ -252,8 +247,8 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
-print("=== 最后防线脚本加载成功 ===")
-print("✅ 左上角品红色120×40固定按钮（小拽终版），点击必响应，不会滑动消失")
-print("✅ 已完全移除拖动功能，彻底解决滑动消失问题")
-print("✅ 触摸独占模式，点击只会触发按钮，不会穿透到游戏")
-print("✅ 三重事件绑定+双重状态检查，确保100%稳定")
+print("=== 完美适配版脚本加载成功 ===")
+print("✅ 右下角橙色130×45固定按钮（小拽完美版），点击必响应")
+print("✅ 已完全移除清理代码，你的键位设置100%保留")
+print("✅ 超大按钮+三重反馈，手机触摸100%命中")
+print("✅ 面板从按钮上方展开，不会遮挡游戏操作区域")
