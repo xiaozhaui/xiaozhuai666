@@ -1,19 +1,17 @@
--- 吃吃世界：手机注入器适配版，使用 Wizard UI，保留原始功能名称
+-- 吃吃世界正式版：手机注入器兼容，保留功能名称
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local LocalPlayer = Players.LocalPlayer
 local Events = ReplicatedStorage:WaitForChild("Events")
 
-local UILib = getgenv().UILibCache or loadstring(game:HttpGet("https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/wizard"))()
-getgenv().UILibCache = UILib
-
+local UILib = loadstring(game:HttpGet("https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/wizard"))()
 local win = UILib:NewWindow("吃吃世界")
 
--- 自动区
+-- 自动功能区域
 local auto = win:NewSection("自动")
 
-auto:CreateToggle("自动吃", function(enabled)
-    autoeat = enabled
+auto:CreateToggle("自动吃", function(v)
+    autoeat = v
     coroutine.wrap(function()
         while autoeat do
             task.wait()
@@ -26,13 +24,13 @@ auto:CreateToggle("自动吃", function(enabled)
     end)()
 end)
 
-auto:CreateToggle("自动刷", function(enabled)
-    autofarm = enabled
-    print("自动刷逻辑已启用（请接入完整版脚本）")
+auto:CreateToggle("自动刷", function(v)
+    autofarm = v
+    print("已启用自动刷，请接入完整版逻辑")
 end)
 
-auto:CreateToggle("自动收", function(enabled)
-    autoCollect = enabled
+auto:CreateToggle("自动收", function(v)
+    autoCollect = v
     coroutine.wrap(function()
         while autoCollect do
             task.wait()
@@ -48,8 +46,8 @@ auto:CreateToggle("自动收", function(enabled)
     end)()
 end)
 
-auto:CreateToggle("自动领", function(enabled)
-    autoClaim = enabled
+auto:CreateToggle("自动领", function(v)
+    autoClaim = v
     coroutine.wrap(function()
         while autoClaim do
             task.wait(1)
@@ -63,67 +61,59 @@ auto:CreateToggle("自动领", function(enabled)
     end)()
 end)
 
-auto:CreateToggle("移动模式", function(enabled)
-    farmMoving = enabled
+auto:CreateToggle("移动模式", function(v)
+    farmMoving = v
 end)
 
-auto:CreateToggle("显示地图", function(enabled)
-    showMap = enabled
+auto:CreateToggle("显示地图", function(v)
+    showMap = v
 end)
 
--- 升级区
+-- 升级功能区域
 local upgrades = win:NewSection("升级")
 
-upgrades:CreateToggle("大小", function(enabled)
-    if enabled then
-        coroutine.wrap(function()
-            while enabled do
-                task.wait(1)
-                Events.PurchaseEvent:FireServer("MaxSize")
-            end
-        end)()
-    end
+upgrades:CreateToggle("大小", function(v)
+    coroutine.wrap(function()
+        while v do
+            task.wait(1)
+            Events.PurchaseEvent:FireServer("MaxSize")
+        end
+    end)()
 end)
 
-upgrades:CreateToggle("移速", function(enabled)
-    if enabled then
-        coroutine.wrap(function()
-            while enabled do
-                task.wait(1)
-                Events.PurchaseEvent:FireServer("Speed")
-            end
-        end)()
-    end
+upgrades:CreateToggle("移速", function(v)
+    coroutine.wrap(function()
+        while v do
+            task.wait(1)
+            Events.PurchaseEvent:FireServer("Speed")
+        end
+    end)()
 end)
 
-upgrades:CreateToggle("乘数", function(enabled)
-    if enabled then
-        coroutine.wrap(function()
-            while enabled do
-                task.wait(1)
-                Events.PurchaseEvent:FireServer("Multiplier")
-            end
-        end)()
-    end
+upgrades:CreateToggle("乘数", function(v)
+    coroutine.wrap(function()
+        while v do
+            task.wait(1)
+            Events.PurchaseEvent:FireServer("Multiplier")
+        end
+    end)()
 end)
 
-upgrades:CreateToggle("吃速", function(enabled)
-    if enabled then
-        coroutine.wrap(function()
-            while enabled do
-                task.wait(1)
-                Events.PurchaseEvent:FireServer("EatSpeed")
-            end
-        end)()
-    end
+upgrades:CreateToggle("吃速", function(v)
+    coroutine.wrap(function()
+        while v do
+            task.wait(1)
+            Events.PurchaseEvent:FireServer("EatSpeed")
+        end
+    end)()
 end)
 
--- 人物区
+-- 人物功能区域
 local figure = win:NewSection("人物")
 
-figure:CreateToggle("取消锚固", function(enabled)
+figure:CreateToggle("取消锚固", function(v)
     coroutine.wrap(function()
-        while enabled do
+        while v do
             task.wait()
             local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
             if root then
@@ -133,9 +123,9 @@ figure:CreateToggle("取消锚固", function(enabled)
     end)()
 end)
 
-figure:CreateToggle("边界保护", function(enabled)
+figure:CreateToggle("边界保护", function(v)
     coroutine.wrap(function()
-        while enabled do
+        while v do
             task.wait()
             local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
             if root and workspace:FindFirstChild("Map") and workspace.Map:FindFirstChild("Bedrock") then
@@ -152,7 +142,7 @@ figure:CreateToggle("边界保护", function(enabled)
     end)()
 end)
 
--- 其它区
+-- 其它功能区域
 local others = win:NewSection("其它")
 
 others:CreateButton("查看玩家数据", function()
@@ -164,6 +154,6 @@ others:CreateButton("查看玩家数据", function()
     end
 end)
 
-others:CreateToggle("竖屏", function(enabled)
-    LocalPlayer.PlayerGui.ScreenOrientation = enabled and Enum.ScreenOrientation.Portrait or Enum.ScreenOrientation.LandscapeRight
+others:CreateToggle("竖屏", function(v)
+    LocalPlayer.PlayerGui.ScreenOrientation = v and Enum.ScreenOrientation.Portrait or Enum.ScreenOrientation.LandscapeRight
 end)
