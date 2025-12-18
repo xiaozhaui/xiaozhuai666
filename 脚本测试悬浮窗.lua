@@ -12,18 +12,20 @@ local autoUpgradeSize, autoUpgradeSpd, autoUpgradeMulti, autoUpgradeEat
 local keepUnanchor, boundProtect
 
 -- 清理旧窗口
-if CoreGui:FindFirstChild("MobileFloatingWindow") then CoreGui.MobileFloatingWindow:Destroy() end
+if LocalPlayer.PlayerGui:FindFirstChild("MobileFloatingWindow") then
+    LocalPlayer.PlayerGui.MobileFloatingWindow:Destroy()
+end
 
--- 主GUI（改用PlayerGui更安全，避免远程加载拦截）
+-- 主GUI（确保在PlayerGui，不被拦截）
 local gui = Instance.new("ScreenGui")
 gui.Name = "MobileFloatingWindow"
 gui.ResetOnSpawn = false
-gui.DisplayOrder = 100
+gui.DisplayOrder = 999 -- 置顶，避免被遮挡
 gui.Parent = LocalPlayer.PlayerGui
 
 -- 主窗口
 local frame = Instance.new("Frame", gui)
-frame.Size = UDim2.new(0, 320, 0, 450) -- 扩大窗口适配多按钮
+frame.Size = UDim2.new(0, 320, 0, 450)
 frame.Position = UDim2.new(0, 60, 0, 60)
 frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 frame.BorderSizePixel = 2
@@ -40,7 +42,7 @@ dragArea.Font = Enum.Font.SourceSansBold
 dragArea.TextSize = 18
 dragArea.AutoButtonColor = true
 
--- 最小化按钮
+-- 最小化按钮（优化点击反馈）
 local miniBtn = Instance.new("TextButton", dragArea)
 miniBtn.Size = UDim2.new(0, 40, 0, 30)
 miniBtn.Position = UDim2.new(1, -40, 0, 0)
@@ -48,15 +50,16 @@ miniBtn.Text = "-"
 miniBtn.TextColor3 = Color3.new(1,1,1)
 miniBtn.BackgroundColor3 = Color3.fromRGB(70,70,70)
 miniBtn.AutoButtonColor = true
+miniBtn.TextSize = 22
 
--- 内容区（滚动容器适配多按钮）
+-- 内容区（滚动容器）
 local scrollFrame = Instance.new("ScrollingFrame", frame)
 scrollFrame.Size = UDim2.new(1, 0, 1, -30)
 scrollFrame.Position = UDim2.new(0, 0, 0, 30)
 scrollFrame.BackgroundTransparency = 1
 scrollFrame.ScrollBarThickness = 6
 scrollFrame.ScrollBarImageColor3 = Color3.fromRGB(80,80,80)
-scrollFrame.CanvasSize = UDim2.new(0, 0, 0, 800) -- 适配所有按钮高度
+scrollFrame.CanvasSize = UDim2.new(0, 0, 0, 800)
 
 local contentUI = Instance.new("UIListLayout", scrollFrame)
 contentUI.Padding = UDim.new(0, 8)
@@ -74,29 +77,33 @@ resizeBtn.ImageRectOffset = Vector2.new(84, 284)
 resizeBtn.ImageRectSize = Vector2.new(36, 36)
 resizeBtn.AutoButtonColor = true
 
--- 最小化圆形按钮（双击打开）
+-- ======================== 关键修复：迷你圆形按钮（彩虹光带+可见性）========================
 local miniCircle = Instance.new("TextButton", gui)
-miniCircle.Size = UDim2.new(0, 60, 0, 60)
-miniCircle.Position = UDim2.new(0.8, 0, 0.8, 0) -- 右下角显示
+miniCircle.Size = UDim2.new(0, 70, 0, 70) -- 放大按钮，更容易看到
+-- 调整位置到左下角（绝对可见，不会超出屏幕）
+miniCircle.Position = UDim2.new(0, 30, 1, -100)
 miniCircle.BackgroundColor3 = Color3.fromRGB(25,25,25)
 miniCircle.Text = "+"
-miniCircle.TextSize = 32
+miniCircle.TextSize = 36 -- 放大文字，更显眼
 miniCircle.TextColor3 = Color3.new(1,1,1)
-miniCircle.BorderSizePixel = 3
+miniCircle.BorderSizePixel = 4 -- 加粗边框，彩虹效果更明显
 miniCircle.Visible = false
 miniCircle.AutoButtonColor = true
+miniCircle.ZIndex = 10 -- 确保在最上层
 Instance.new("UICorner", miniCircle).CornerRadius = UDim.new(1,0)
 
--- 🌈 彩虹边框动画
+-- 🌈 彩虹边框动画（强制运行，确保光带显示）
 local hue = 0
 RunService.RenderStepped:Connect(function()
     if miniCircle.Visible then
-        hue = (hue + 1.5) % 360
+        hue = (hue + 2) % 360 -- 加快速度，光带更明显
         miniCircle.BorderColor3 = Color3.fromHSV(hue / 360, 1, 1)
+        -- 额外添加背景微光，更易识别
+        miniCircle.BackgroundColor3 = Color3.fromHSV(hue / 360, 0.3, 0.2)
     end
 end)
 
--- ======================== 核心功能函数（来自提供的脚本）========================
+-- ======================== 核心功能函数（不变）========================
 local function getRoot()
     return LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
 end
@@ -117,7 +124,6 @@ local function checkLoaded()
         and LocalPlayer.Character:FindFirstChild("CurrentChunk")) ~= nil
 end
 
--- 升级相关函数
 local function sizeGrowth(level) return math.floor(((level + 0.5) ^ 2 - 0.25) / 2 * 100) end
 local function speedGrowth(level) return math.floor(level * 2 + 10) end
 local function multiplierGrowth(level) return math.floor(level) end
@@ -127,8 +133,7 @@ local function speedPrice(level) return math.floor((level * 3) ^ 3 / 200) * 1000
 local function multiplierPrice(level) return math.floor((level * 10) ^ 3 / 200) * 1000 end
 local function eatSpeedPrice(level) return math.floor((level * 10) ^ 3 / 200) * 2000 end
 
--- ======================== 功能按钮创建（集成所有自动化功能）========================
--- 自动功能组
+-- ======================== 功能按钮创建（不变）========================
 local function createToggle(parent, text, callback)
     local btn = Instance.new("TextButton", parent)
     btn.Size = UDim2.new(0, 280, 0, 40)
@@ -212,7 +217,6 @@ createToggle(scrollFrame, "自动刷", function(enabled)
             autoConn = RunService.Heartbeat:Connect(function(dt)
                 if not autofarm then autoConn:Disconnect() return end
                 
-                -- 状态文本更新
                 local ran = tick() - startTime
                 local hours = math.floor(ran / 60 / 60)
                 local minutes = math.floor(ran / 60)
@@ -233,7 +237,6 @@ createToggle(scrollFrame, "自动刷", function(enabled)
                     secondEarn, numChunks
                 )
                 
-                -- 核心自动化逻辑
                 hum:ChangeState(Enum.HumanoidStateType.Physics)
                 grab:FireServer()
                 root.Anchored = false
@@ -266,7 +269,6 @@ createToggle(scrollFrame, "自动刷", function(enabled)
                     sellDebounce = false
                 end
                 
-                -- 移动模式逻辑
                 if farmMoving then
                     local bound = 300
                     local startPos = CFrame.new(-bound/2, y, -bound/2)
@@ -299,7 +301,6 @@ createToggle(scrollFrame, "自动刷", function(enabled)
             end
         end
         
-        -- 停止时清理
         charAddConn:Disconnect()
         if autoConn then autoConn:Disconnect() end
         if map and chunks then map.Parent, chunks.Parent = workspace, workspace end
@@ -367,7 +368,6 @@ createToggle(scrollFrame, "自动吃", function(enabled)
     end)()
 end)
 
--- 升级组按钮
 createToggle(scrollFrame, "自动升级大小", function(enabled)
     autoUpgradeSize = enabled
     if not enabled then return end
@@ -424,7 +424,6 @@ createToggle(scrollFrame, "自动升级吃速", function(enabled)
     end)()
 end)
 
--- 人物组按钮
 createToggle(scrollFrame, "取消锚固", function(enabled)
     keepUnanchor = enabled
     if not enabled then return end
@@ -461,7 +460,6 @@ createToggle(scrollFrame, "边界保护", function(enabled)
     end)()
 end)
 
--- 其它功能按钮
 createButton(scrollFrame, "查看玩家数据", function()
     local localization = {MaxSize = "体积", Speed = "移速", Multiplier = "乘数", EatSpeed = "吃速"}
     local growthFunctions = {MaxSize = sizeGrowth, Speed = speedGrowth, Multiplier = multiplierGrowth, EatSpeed = eatSpeedGrowth}
@@ -486,7 +484,7 @@ createToggle(scrollFrame, "竖屏模式", function(enabled)
     LocalPlayer.PlayerGui.ScreenOrientation = enabled and Enum.ScreenOrientation.Portrait or Enum.ScreenOrientation.LandscapeRight
 end)
 
--- ======================== 悬浮窗基础功能（拖动/缩放/双击打开）========================
+-- ======================== 悬浮窗基础功能（关键修复）========================
 -- 拖动逻辑
 local dragging, draggingMini = false, false
 local dragStart, startPos, miniStart, miniPos
@@ -525,7 +523,7 @@ UserInputService.TouchMoved:Connect(function(input)
     end
 end)
 
--- 缩放逻辑（跟手优化）
+-- 缩放逻辑
 local resizing = false
 local resizeStartPos, resizeStartSize
 
@@ -550,21 +548,25 @@ UserInputService.TouchMoved:Connect(function(input)
     end
 end)
 
--- 最小化/双击打开逻辑
+-- ======================== 关键修复：最小化/双击打开逻辑 =======================
+-- 最小化：隐藏主窗口，强制显示圆形按钮
 miniBtn.InputEnded:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.Touch then
         frame.Visible = false
-        miniCircle.Visible = true
+        miniCircle.Visible = true -- 强制显示，避免被覆盖
+        print("最小化成功，圆形按钮已显示") -- 调试用，可删除
     end
 end)
 
--- 双击圆形按钮打开
+-- 双击圆形按钮打开（延长间隔到400ms，更易触发）
 local lastClickTime = 0
-local doubleClickDelay = 300
+local doubleClickDelay = 400 -- 延长双击间隔，适配移动端操作
 miniCircle.InputEnded:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.Touch then
         local currentTime = tick()
+        print("点击圆形按钮，间隔：", currentTime - lastClickTime) -- 调试用，可删除
         if currentTime - lastClickTime < doubleClickDelay then
+            -- 双击成功，恢复窗口
             miniCircle.Visible = false
             frame.Visible = true
         end
