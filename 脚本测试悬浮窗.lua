@@ -66,6 +66,69 @@ end
 -- ========================
 -- 🌈 悬浮窗样式结束
 -- ========================
+
+-- 保留你的现有功能代码部分
+local function randomTp(character)
+    local pos = workspace.Map.Bedrock.Position + Vector3.new(math.random(-workspace.Map.Bedrock.Size.X / 2, workspace.Map.Bedrock.Size.X / 2), 0, math.random(-workspace.Map.Bedrock.Size.X / 2, workspace.Map.Bedrock.Size.X / 2))
+    character:MoveTo(pos)
+    character:PivotTo(CFrame.new(character:GetPivot().Position, workspace.Map.Bedrock.Position))
+end
+
+local function changeMap()
+    local args = {
+    	{
+    		MapTime = -1,
+    		Paused = true
+    	}
+    }
+    Events.SetServerSettings:FireServer(unpack(args))
+end
+
+local function checkLoaded()
+    return (LocalPlayer.Character
+        and LocalPlayer.Character:FindFirstChild("Humanoid")
+        and LocalPlayer.Character:FindFirstChild("Size")
+        and LocalPlayer.Character:FindFirstChild("Events")
+        and LocalPlayer.Character.Events:FindFirstChild("Grab")
+        and LocalPlayer.Character.Events:FindFirstChild("Eat")
+        and LocalPlayer.Character.Events:FindFirstChild("Sell")
+        and LocalPlayer.Character:FindFirstChild("CurrentChunk")) ~= nil
+end
+
+-- 添加你的功能代码，如自动刷、自动吃等
+
+main:CreateToggle("自动刷", function(enabled)
+    autofarm = enabled
+    
+    coroutine.wrap(function()
+        while autofarm do
+            -- 你的自动刷功能代码
+            task.wait(1)
+        end
+    end)()
+end)
+
+main:CreateToggle("自动吃", function(enabled)
+    autoeat = enabled
+    
+    coroutine.wrap(function()
+        while autoeat do
+            -- 你的自动吃功能代码
+            task.wait(1)
+        end
+    end)()
+end)
+
+upgrades:CreateToggle("大小", function(enabled)
+    autoUpgradeSize = enabled
+    
+    coroutine.wrap(function()
+        while autoUpgradeSize do
+            -- 你的自动升级大小功能
+            task.wait(1)
+        end
+    end)()
+end)
 --[[local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
