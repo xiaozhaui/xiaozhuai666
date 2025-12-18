@@ -10,27 +10,36 @@ local LocalPlayer = Players.LocalPlayer
 local autofarm, autoCollectingCubes, autoClaimRewards, farmMoving, showMap, autoeat
 local autoUpgradeSize, autoUpgradeSpd, autoUpgradeMulti, autoUpgradeEat
 local keepUnanchor, boundProtect
+-- 颜色自定义全局变量
+local currentUIColor = Color3.fromRGB(139, 101, 64) -- 默认棕色调
+local colorPresets = {
+    棕色调 = Color3.fromRGB(139, 101, 64),
+    蓝调 = Color3.fromRGB(60, 100, 180),
+    红调 = Color3.fromRGB(180, 60, 80),
+    绿调 = Color3.fromRGB(60, 180, 100),
+    紫调 = Color3.fromRGB(120, 60, 180)
+}
 
 -- 清理旧窗口
 if LocalPlayer.PlayerGui:FindFirstChild("MobileFloatingWindow") then
     LocalPlayer.PlayerGui.MobileFloatingWindow:Destroy()
 end
 
--- 主GUI（置顶+调整位置，避开游戏原生UI）
+-- 主GUI（置顶+忽略边距）
 local gui = Instance.new("ScreenGui")
 gui.Name = "MobileFloatingWindow"
 gui.ResetOnSpawn = false
 gui.DisplayOrder = 999
-gui.IgnoreGuiInset = true -- 忽略屏幕边距，避免错位
+gui.IgnoreGuiInset = true
 gui.Parent = LocalPlayer.PlayerGui
 
--- ======================== 全局彩虹光带配置（修复描边成线）========================
+-- ======================== 全局彩虹光带配置 ========================
 local hue = 0
 RunService.RenderStepped:Connect(function(dt)
     hue = (hue + 1.2) % 360
 end)
 
--- 创建彩虹光带框架（关键：描边仅在内部显示，避免超出成线）
+-- 创建彩虹光带框架（内部描边，避免成线）
 local function createRainbowBorder(parent, size, offset)
     local border = Instance.new("Frame")
     border.Size = size or UDim2.new(1, 0, 1, 0)
@@ -38,13 +47,12 @@ local function createRainbowBorder(parent, size, offset)
     border.BackgroundTransparency = 1
     border.ZIndex = parent.ZIndex + 1
     border.Parent = parent.Parent
-    border.ClipsDescendants = true -- 裁剪超出部分，防止成线
+    border.ClipsDescendants = true
 
     local uiStroke = Instance.new("UIStroke", border)
-    uiStroke.Thickness = 2 -- 降低光带厚度，避免显粗成线
+    uiStroke.Thickness = 2
     uiStroke.LineJoinMode = Enum.LineJoinMode.Round
     uiStroke.LineCapMode = Enum.LineCapMode.Round
-    -- 核心修复：描边仅在元素内部显示，不会超出成线
     uiStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Inside
 
     RunService.RenderStepped:Connect(function()
@@ -53,104 +61,86 @@ local function createRainbowBorder(parent, size, offset)
     return border
 end
 
--- ======================== 主面板（横向椭圆+避开游戏UI，修复黑线）========================
--- 主面板（直接创建，取消外层光带框架，避免双层描边成线）
-local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 400, 0, 180) -- 短宽椭圆：400×180
-frame.Position = UDim2.new(0.2, 0, 0.3, 0) -- 移到屏幕中间，避开左侧游戏按钮
-frame.BackgroundColor3 = Color3.fromRGB(139, 101, 64)
-frame.BorderSizePixel = 0 -- 彻底移除原生边框，杜绝黑线
-frame.ClipsDescendants = true
-frame.ZIndex = 1000
-frame.Parent = gui
--- 横向椭圆圆角（高度的一半，标准椭圆）
-local frameCorner = Instance.new("UICorner", frame)
-frameCorner.CornerRadius = UDim.new(0.5, 0)
+-- 更新UI颜色函数（颜色自定义核心）
+local function updateUIColor(color)
+    currentUIColor = color
+    -- 更新标题椭圆颜色
+    titleOval.BackgroundColor3 = color
+    -- 更新主面板颜色
+    mainPanel.BackgroundColor3 = color
+    -- 更新分类按钮颜色
+    for _, cat in ipairs(categoryFrames) do
+        cat.BackgroundColor3 = color:lerp(Color3.fromRGB(0,0,0), 0.2)
+    end
+    -- 更新最小化椭圆颜色
+    miniOval.BackgroundColor3 = color
+end
 
--- 主面板内部光带（仅在面板内显示，不会外溢成线）
-local mainRainbowBorder = createRainbowBorder(frame)
-local mainUISTroke = mainRainbowBorder:FindFirstChildOfClass("UIStroke")
-mainUISTroke.Thickness = 3 -- 内部光带稍厚，视觉更明显
-
--- ======================== 顶部标题栏（适配椭圆）========================
-local titleBar = Instance.new("Frame", frame)
-titleBar.Size = UDim2.new(1, 0, 0, 35)
-titleBar.BackgroundColor3 = Color3.fromRGB(110, 78, 46)
-titleBar.ZIndex = 1001
-local titleCorner = Instance.new("UICorner", titleBar)
+-- ======================== 标题椭圆（小尺寸+包裹“小拽吃吃世界”）========================
+local titleOval = Instance.new("TextButton")
+titleOval.Size = UDim2.new(0, 200, 0, 50) -- 小尺寸横向椭圆：200×50
+titleOval.Position = UDim2.new(0.2, 0, 0.2, 0) -- 屏幕上方偏左，不遮挡游戏UI
+titleOval.BackgroundColor3 = currentUIColor
+titleOval.Text = "小拽吃吃世界"
+titleOval.TextColor3 = Color3.new(1,1,1)
+titleOval.Font = Enum.Font.SourceSansBold
+titleOval.TextSize = 18
+titleOval.ZIndex = 1000
+titleOval.Parent = gui
+-- 横向椭圆圆角（高度的一半）
+local titleCorner = Instance.new("UICorner", titleOval)
 titleCorner.CornerRadius = UDim.new(0.5, 0)
+-- 标题椭圆彩虹光带
+createRainbowBorder(titleOval)
 
--- 标题文字
-local titleText = Instance.new("TextLabel", titleBar)
-titleText.Size = UDim2.new(1, -40, 1, 0)
-titleText.BackgroundTransparency = 1
-titleText.Text = "吃吃世界Pro"
-titleText.TextColor3 = Color3.fromRGB(255, 0, 255)
-titleText.Font = Enum.Font.SourceSansBold
-titleText.TextSize = 20
-titleText.ZIndex = 1001
+-- ======================== 主悬浮窗面板（窄版+标题椭圆下方展开）========================
+local mainPanel = Instance.new("Frame")
+mainPanel.Size = UDim2.new(0, 300, 0, 150) -- 窄版：宽300（不要太宽），高150
+mainPanel.Position = UDim2.new(0.2, 0, 0.2, 60) -- 在标题椭圆下方60像素展开
+mainPanel.BackgroundColor3 = currentUIColor
+mainPanel.BorderSizePixel = 0
+mainPanel.ClipsDescendants = true
+mainPanel.ZIndex = 1000
+mainPanel.Visible = false -- 默认隐藏，点击标题椭圆展开
+mainPanel.Parent = gui
+-- 主面板横向椭圆圆角
+local panelCorner = Instance.new("UICorner", mainPanel)
+panelCorner.CornerRadius = UDim.new(0.3, 0) -- 浅椭圆，不夸张
+-- 主面板彩虹光带
+createRainbowBorder(mainPanel)
 
--- 最小化按钮（小椭圆）
-local miniBtn = Instance.new("TextButton", titleBar)
-miniBtn.Size = UDim2.new(0, 30, 0, 20)
-miniBtn.Position = UDim2.new(1, -35, 0.5, -10)
-miniBtn.Text = "-"
-miniBtn.TextColor3 = Color3.new(1,1,1)
-miniBtn.BackgroundColor3 = Color3.fromRGB(90, 62, 35)
-miniBtn.AutoButtonColor = true
-miniBtn.ZIndex = 1001
-local miniBtnCorner = Instance.new("UICorner", miniBtn)
-miniBtnCorner.CornerRadius = UDim.new(0.5, 0)
-createRainbowBorder(miniBtn, UDim2.new(1, 6, 1, 6), UDim2.new(0, -3, 0, -3))
-
--- ======================== 内容滚动区（横向排列，适配椭圆）========================
-local scrollFrame = Instance.new("ScrollingFrame", frame)
-scrollFrame.Size = UDim2.new(1, -10, 1, -40)
-scrollFrame.Position = UDim2.new(0, 5, 0, 35)
+-- ======================== 主面板内容区（窄版适配）========================
+local scrollFrame = Instance.new("ScrollingFrame", mainPanel)
+scrollFrame.Size = UDim2.new(1, -10, 1, -10)
+scrollFrame.Position = UDim2.new(0, 5, 0, 5)
 scrollFrame.BackgroundTransparency = 1
-scrollFrame.ScrollBarThickness = 6
+scrollFrame.ScrollBarThickness = 4
 scrollFrame.ScrollBarImageColor3 = Color3.new(1, 1, 1)
-scrollFrame.CanvasSize = UDim2.new(0, 800, 0, 0)
-scrollFrame.ScrollingDirection = Enum.ScrollingDirection.X
-scrollFrame.ZIndex = 1000
--- 隐藏滚动条背景，避免额外线条
-scrollFrame.ScrollBarBackgroundColor3 = Color3.new(0,0,0,0)
+scrollFrame.CanvasSize = UDim2.new(0, 0, 0, 400)
+scrollFrame.ZIndex = 1001
 scrollFrame.ScrollBarBackgroundTransparency = 1
 
--- 菜单列表布局
 local menuLayout = Instance.new("UIListLayout", scrollFrame)
-menuLayout.Padding = UDim.new(0, 8)
-menuLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
-menuLayout.VerticalAlignment = Enum.VerticalAlignment.Center
-menuLayout.FillDirection = Enum.FillDirection.Horizontal
+menuLayout.Padding = UDim.new(0, 5)
+menuLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+menuLayout.VerticalAlignment = Enum.VerticalAlignment.Top
 
--- ======================== 最小化后的椭圆按钮（短宽型）========================
+-- 分类按钮存储（用于颜色更新）
+local categoryFrames = {}
+
+-- ======================== 最小化后的小椭圆（点击隐藏主面板）========================
 local miniOval = Instance.new("TextButton", gui)
-miniOval.Size = UDim2.new(0, 120, 0, 60)
-miniOval.Position = UDim2.new(0.1, 0, 0.8, 0) -- 移到右下角，避开游戏UI
-miniOval.BackgroundColor3 = Color3.fromRGB(139, 101, 64)
-miniOval.Text = "+"
-miniOval.TextSize = 28
+miniOval.Size = UDim2.new(0, 80, 0, 40) -- 更小的椭圆：80×40
+miniOval.Position = UDim2.new(0.1, 0, 0.8, 0)
+miniOval.BackgroundColor3 = currentUIColor
+miniOval.Text = "-"
+miniOval.TextSize = 24
 miniOval.TextColor3 = Color3.new(1,1,1)
 miniOval.Visible = false
-miniOval.AutoButtonColor = true
 miniOval.ZIndex = 1000
 local miniOvalCorner = Instance.new("UICorner", miniOval)
 miniOvalCorner.CornerRadius = UDim.new(0.5, 0)
-
--- 椭圆按钮双层光带（内部描边，避免成线）
-local miniInnerBorder = createRainbowBorder(miniOval, UDim2.new(1, -4, 1, -4), UDim2.new(0, 2, 0, 2))
-local innerStroke = miniInnerBorder:FindFirstChildOfClass("UIStroke")
-innerStroke.Thickness = 2
-
-local miniOuterBorder = createRainbowBorder(miniOval, UDim2.new(1, 8, 1, 8), UDim2.new(0, -4, 0, -4))
-local outerStroke = miniOuterBorder:FindFirstChildOfClass("UIStroke")
-outerStroke.Thickness = 3
-outerStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Inside -- 外层光带也内部显示
-RunService.RenderStepped:Connect(function()
-    local delayedHue = (hue + 60) % 360
-    outerStroke.Color = Color3.fromHSV(delayedHue / 360, 0.9, 1)
-end)
+createRainbowBorder(miniOval)
 
 -- ======================== 核心功能函数 ========================
 local function getRoot()
@@ -182,39 +172,40 @@ local function speedPrice(level) return math.floor((level * 3) ^ 3 / 200) * 1000
 local function multiplierPrice(level) return math.floor((level * 10) ^ 3 / 200) * 1000 end
 local function eatSpeedPrice(level) return math.floor((level * 10) ^ 3 / 200) * 2000 end
 
--- ======================== 分层菜单创建函数 ========================
+-- ======================== 菜单创建函数（窄版适配）========================
 local function createCategory(parent, title, titleColor)
     local categoryFrame = Instance.new("Frame")
-    categoryFrame.Size = UDim2.new(0, 180, 0, 120)
-    categoryFrame.BackgroundColor3 = Color3.fromRGB(110, 78, 46)
+    categoryFrame.Size = UDim2.new(0, 280, 0, 40) -- 窄版分类按钮
+    categoryFrame.BackgroundColor3 = currentUIColor:lerp(Color3.fromRGB(0,0,0), 0.2)
     categoryFrame.ZIndex = 1001
     categoryFrame.Parent = parent
+    table.insert(categoryFrames, categoryFrame) -- 加入颜色更新列表
     local categoryCorner = Instance.new("UICorner", categoryFrame)
-    categoryCorner.CornerRadius = UDim.new(0.05, 0)
+    categoryCorner.CornerRadius = UDim.new(0.1, 0)
 
     local titleLabel = Instance.new("TextLabel", categoryFrame)
-    titleLabel.Size = UDim2.new(1, -40, 0, 30)
-    titleLabel.Position = UDim2.new(0, 10, 0, 5)
+    titleLabel.Size = UDim2.new(1, -30, 1, 0)
+    titleLabel.Position = UDim2.new(0, 10, 0, 0)
     titleLabel.BackgroundTransparency = 1
     titleLabel.Text = title
     titleLabel.TextColor3 = titleColor
     titleLabel.Font = Enum.Font.SourceSansBold
-    titleLabel.TextSize = 18
+    titleLabel.TextSize = 16
     titleLabel.ZIndex = 1001
 
     local arrow = Instance.new("TextLabel", categoryFrame)
     arrow.Size = UDim2.new(0, 20, 0, 20)
-    arrow.Position = UDim2.new(1, -30, 0.1, -10)
+    arrow.Position = UDim2.new(1, -25, 0.5, -10)
     arrow.BackgroundTransparency = 1
     arrow.Text = "v"
     arrow.TextColor3 = Color3.new(1,1,1)
     arrow.Font = Enum.Font.SourceSansBold
-    arrow.TextSize = 20
+    arrow.TextSize = 18
     arrow.ZIndex = 1001
 
     local subMenu = Instance.new("Frame")
-    subMenu.Size = UDim2.new(0, 170, 0, 0)
-    subMenu.Position = UDim2.new(0, 5, 0, 35)
+    subMenu.Size = UDim2.new(0, 270, 0, 0)
+    subMenu.Position = UDim2.new(0, 5, 0, 45)
     subMenu.BackgroundTransparency = 1
     subMenu.ZIndex = 1001
     subMenu.Parent = categoryFrame
@@ -231,11 +222,11 @@ local function createCategory(parent, title, titleColor)
             arrow.Text = isExpanded and "^" or "v"
             local totalHeight = 0
             for _, child in subMenu:GetChildren() do
-                if child:IsA("Frame") or child:IsA("TextButton") then
+                if child:IsA("TextButton") then
                     totalHeight += child.AbsoluteSize.Y + 3
                 end
             end
-            subMenu.Size = UDim2.new(0, 170, 0, isExpanded and totalHeight or 0)
+            subMenu.Size = UDim2.new(0, 270, 0, isExpanded and totalHeight or 0)
         end
     end)
 
@@ -248,8 +239,8 @@ end
 
 local function createSubButton(parent, text, callback)
     local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0, 160, 0, 25)
-    btn.BackgroundColor3 = Color3.fromRGB(70, 50, 30)
+    btn.Size = UDim2.new(0, 260, 0, 30) -- 窄版功能按钮
+    btn.BackgroundColor3 = currentUIColor:lerp(Color3.fromRGB(0,0,0), 0.4)
     btn.TextColor3 = Color3.new(1,1,1)
     btn.Text = text
     btn.Font = Enum.Font.SourceSans
@@ -258,21 +249,21 @@ local function createSubButton(parent, text, callback)
     btn.ZIndex = 1001
     btn.Parent = parent
     local btnCorner = Instance.new("UICorner", btn)
-    btnCorner.CornerRadius = UDim.new(0.05, 0)
+    btnCorner.CornerRadius = UDim.new(0.1, 0)
 
     local isEnabled = false
     btn.MouseButton1Click:Connect(function()
         isEnabled = not isEnabled
-        btn.BackgroundColor3 = isEnabled and Color3.fromRGB(40, 200, 100) or Color3.fromRGB(70, 50, 30)
+        btn.BackgroundColor3 = isEnabled and Color3.fromRGB(40, 200, 100) or currentUIColor:lerp(Color3.fromRGB(0,0,0), 0.4)
         callback(isEnabled)
     end)
     return btn
 end
 
-local function createNormalButton(parent, text, callback)
+local function createColorButton(parent, text, color)
     local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0, 160, 0, 25)
-    btn.BackgroundColor3 = Color3.fromRGB(70, 50, 30)
+    btn.Size = UDim2.new(0, 120, 0, 30)
+    btn.BackgroundColor3 = color
     btn.TextColor3 = Color3.new(1,1,1)
     btn.Text = text
     btn.Font = Enum.Font.SourceSans
@@ -281,12 +272,16 @@ local function createNormalButton(parent, text, callback)
     btn.ZIndex = 1001
     btn.Parent = parent
     local btnCorner = Instance.new("UICorner", btn)
-    btnCorner.CornerRadius = UDim.new(0.05, 0)
-    btn.MouseButton1Click:Connect(callback)
+    btnCorner.CornerRadius = UDim.new(0.1, 0)
+
+    btn.MouseButton1Click:Connect(function()
+        updateUIColor(color)
+    end)
     return btn
 end
 
--- ======================== 创建分层菜单 ========================
+-- ======================== 创建功能菜单（含颜色自定义）========================
+-- 1. 自动功能分类
 local autoFuncCat = createCategory(scrollFrame, "自动功能", Color3.fromRGB(255, 165, 0))
 createSubButton(autoFuncCat.subMenu, "自动刷", function(enabled)
     autofarm = enabled
@@ -453,6 +448,7 @@ createSubButton(autoFuncCat.subMenu, "自动收", function(enabled)
     end)()
 end)
 
+-- 2. 移动速度分类
 local moveSpeedCat = createCategory(scrollFrame, "移动速度", Color3.fromRGB(0, 255, 0))
 createSubButton(moveSpeedCat.subMenu, "自动升级移速", function(enabled)
     autoUpgradeSpd = enabled
@@ -470,6 +466,7 @@ createSubButton(moveSpeedCat.subMenu, "移动模式", function(enabled)
     farmMoving = enabled
 end)
 
+-- 3. 其它工具分类
 local otherToolsCat = createCategory(scrollFrame, "其它工具", Color3.fromRGB(0, 255, 127))
 createSubButton(otherToolsCat.subMenu, "取消锚固", function(enabled)
     keepUnanchor = enabled
@@ -483,118 +480,89 @@ createSubButton(otherToolsCat.subMenu, "取消锚固", function(enabled)
         end
     end)()
 end)
-createNormalButton(otherToolsCat.subMenu, "人物数据榜", function()
-    local localization = {MaxSize = "体积", Speed = "移速", Multiplier = "乘数", EatSpeed = "吃速"}
-    local growthFunctions = {MaxSize = sizeGrowth, Speed = speedGrowth, Multiplier = multiplierGrowth, EatSpeed = eatSpeedGrowth}
-    local priceFunctions = {MaxSize = sizePrice, Speed = speedPrice, Multiplier = multiplierPrice, EatSpeed = eatSpeedPrice}
 
-    for _, player in Players:GetPlayers() do
-        print()
-        for _, upg in player.Upgrades:GetChildren() do
-            local cost = 0
-            for l = 2, upg.Value do cost += priceFunctions[upg.Name](l) end
-            print(string.format(
-                "%s：%s %i级；%i值；%i花费",
-                player.Name, localization[upg.Name], upg.Value,
-                growthFunctions[upg.Name](upg.Value), cost
-            ))
-        end
-    end
-    game.StarterGui:SetCore("DevConsoleVisible", true)
+-- 4. 颜色自定义分类（核心需求）
+local colorCat = createCategory(scrollFrame, "颜色自定义", Color3.fromRGB(255, 0, 255))
+-- 颜色预设按钮（横向排列）
+local colorLayout = Instance.new("UIListLayout", colorCat.subMenu)
+colorLayout.FillDirection = Enum.FillDirection.Horizontal
+colorLayout.Padding = UDim.new(0, 5)
+colorLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+
+for name, color in pairs(colorPresets) do
+    createColorButton(colorCat.subMenu, name, color)
+end
+
+-- ======================== 点击逻辑（单击展开/隐藏）========================
+-- 点击标题椭圆：展开主面板，隐藏标题椭圆，显示最小化椭圆
+titleOval.MouseButton1Click:Connect(function()
+    mainPanel.Visible = true
+    titleOval.Visible = false
+    miniOval.Visible = true
 end)
 
--- ======================== 悬浮窗基础功能 ========================
-local dragging, draggingMini = false, false
-local dragStart, startPos, miniStart, miniPos
+-- 点击最小化椭圆：隐藏主面板，显示标题椭圆，隐藏最小化椭圆
+miniOval.MouseButton1Click:Connect(function()
+    mainPanel.Visible = false
+    miniOval.Visible = false
+    titleOval.Visible = true
+end)
 
-titleBar.InputBegan:Connect(function(input)
+-- ======================== 拖动功能（保留）========================
+local dragging = false
+local dragStart, startPos
+
+-- 拖动标题椭圆
+titleOval.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.Touch then
         dragging = true
         dragStart = input.Position
-        startPos = frame.Position
+        startPos = titleOval.Position
     end
 end)
 
-titleBar.InputEnded:Connect(function(input)
+titleOval.InputEnded:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.Touch then dragging = false end
 end)
 
+-- 拖动主面板
+mainPanel.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = mainPanel.Position
+    end
+end)
+
+mainPanel.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Touch then dragging = false end
+end)
+
+-- 拖动最小化椭圆
 miniOval.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.Touch then
-        draggingMini = true
-        miniStart = input.Position
-        miniPos = miniOval.Position
+        dragging = true
+        dragStart = input.Position
+        startPos = miniOval.Position
     end
 end)
 
 miniOval.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.Touch then draggingMini = false end
+    if input.UserInputType == Enum.UserInputType.Touch then dragging = false end
 end)
 
 UserInputService.TouchMoved:Connect(function(input)
     if dragging then
         local delta = input.Position - dragStart
-        frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-    elseif draggingMini then
-        local delta = input.Position - miniStart
-        miniOval.Position = UDim2.new(miniPos.X.Scale, miniPos.X.Offset + delta.X, miniPos.Y.Scale, miniPos.Y.Offset + delta.Y)
-    end
-end)
-
-local resizeBtn = Instance.new("ImageButton", frame)
-resizeBtn.Size = UDim2.new(0, 25, 0, 25)
-resizeBtn.Position = UDim2.new(1, -12, 1, -12)
-resizeBtn.AnchorPoint = Vector2.new(1,1)
-resizeBtn.BackgroundColor3 = Color3.fromRGB(90, 62, 35)
-resizeBtn.Image = "rbxassetid://3926305904"
-resizeBtn.ImageRectOffset = Vector2.new(84, 284)
-resizeBtn.ImageRectSize = Vector2.new(36, 36)
-resizeBtn.AutoButtonColor = true
-resizeBtn.ZIndex = 1001
-local resizeCorner = Instance.new("UICorner", resizeBtn)
-resizeCorner.CornerRadius = UDim.new(0.5, 0)
-createRainbowBorder(resizeBtn, UDim2.new(1, 6, 1, 6), UDim2.new(0, -3, 0, -3))
-
-local resizing = false
-local resizeStartPos, resizeStartSize
-
-resizeBtn.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.Touch then
-        resizing = true
-        resizeStartPos = input.Position
-        resizeStartSize = frame.Size
-    end
-end)
-
-resizeBtn.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.Touch then resizing = false end
-end)
-
-UserInputService.TouchMoved:Connect(function(input)
-    if resizing then
-        local delta = input.Position - resizeStartPos
-        local newW = math.max(300, resizeStartSize.X.Offset + delta.X)
-        local newH = math.max(120, resizeStartSize.Y.Offset + delta.Y)
-        frame.Size = UDim2.new(0, newW, 0, newH)
-    end
-end)
-
-miniBtn.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.Touch then
-        frame.Visible = false
-        miniOval.Visible = true
-    end
-end)
-
-local lastClickTime = 0
-local doubleClickDelay = 400
-miniOval.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.Touch then
-        local currentTime = tick()
-        if currentTime - lastClickTime < doubleClickDelay then
-            miniOval.Visible = false
-            frame.Visible = true
+        -- 判断当前拖动的是哪个元素
+        if titleOval.Visible then
+            titleOval.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+            mainPanel.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + 60)
+        elseif mainPanel.Visible then
+            mainPanel.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+            titleOval.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset - 60)
+        else
+            miniOval.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
         end
-        lastClickTime = currentTime
     end
 end)
