@@ -1,89 +1,71 @@
--- 专用清理脚本（先执行，彻底清除旧残留）
+-- 🆕 全新独立脚本：迷你悬浮窗v2.0（2025.12.19 最新版）
+-- 重命名所有元素，避免与旧脚本冲突
 local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
--- 删除所有旧UI和残留
-pcall(function() PlayerGui.FinalFunctionalWindow:Destroy() end)
-pcall(function() PlayerGui.TestWindow:Destroy() end)
-pcall(function() PlayerGui.MiniWindow:Destroy() end)
-pcall(function() PlayerGui.TestUI:Destroy() end)
-pcall(function() PlayerGui.ClickTest:Destroy() end)
-pcall(function() PlayerGui:FindFirstChildWhichIsA("ScreenGui"):Destroy() end)
-
--- 清理全局变量
-autofarm = nil
-autoCollectingCubes = nil
-autoClaimRewards = nil
-autoUpgradeSize = nil
-
-print("✅ 旧脚本残留已彻底清除！")
-
--- 超精简修复版脚本（默认关闭+尺寸优化）
-local UserInputService = game:GetService("UserInputService")
-local RunService = game:GetService("RunService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
 -- 全局状态（默认关闭）
 local isOpen = false
-local mainColor = Color3.fromRGB(139, 101, 64)
+local mainColor = Color3.fromRGB(255, 100, 100) -- 改为红色，区别旧版本
 
--- 主GUI
-local gui = Instance.new("ScreenGui")
-gui.Name = "FinalFunctionalWindow"
-gui.DisplayOrder = 999999
-gui.IgnoreGuiInset = true
-gui.Parent = PlayerGui
+-- 主GUI（全新命名，避免冲突）
+local miniGui = Instance.new("ScreenGui")
+miniGui.Name = "MiniWindow_v2_20251219" -- 唯一名称，绝对不会冲突
+miniGui.DisplayOrder = 999999
+miniGui.IgnoreGuiInset = true
+miniGui.Parent = PlayerGui
 
--- 触发按钮（缩小到120×40，左上角，不挡操作）
-local trigger = Instance.new("TextButton")
-trigger.Size = UDim2.new(0, 120, 0, 40)
-trigger.Position = UDim2.new(0.02, 0, 0.02, 0)
-trigger.BackgroundColor3 = mainColor
-trigger.Text = "小拽功能"
-trigger.TextColor3 = Color3.new(1, 1, 1)
-trigger.Font = Enum.Font.SourceSansBold
-trigger.TextSize = 16
-trigger.ZIndex = 10
-trigger.Parent = gui
-Instance.new("UICorner", trigger).CornerRadius = UDim.new(0.5, 0)
+-- 触发按钮（迷你版：100×35，位置调整到右上角）
+local triggerBtn = Instance.new("TextButton")
+triggerBtn.Size = UDim2.new(0, 100, 0, 35) -- 比之前更小！
+triggerBtn.Position = UDim2.new(0.98, -100, 0.02, 0) -- 右上角，不挡操作
+triggerBtn.BackgroundColor3 = mainColor
+triggerBtn.Text = "小拽v2"
+triggerBtn.TextColor3 = Color3.new(1, 1, 1)
+triggerBtn.Font = Enum.Font.SourceSansBold
+triggerBtn.TextSize = 14
+triggerBtn.ZIndex = 10
+triggerBtn.Parent = miniGui
+Instance.new("UICorner", triggerBtn).CornerRadius = UDim.new(0.5, 0)
 
 -- 面板+容器（默认高度0，完全关闭）
-local panel = Instance.new("Frame")
-panel.Name = "Panel"
-panel.Size = UDim2.new(0, 180, 0, 0) -- 默认关闭
-panel.Position = UDim2.new(0.02, 0, 0.02, 40)
-panel.BackgroundColor3 = mainColor
-panel.ZIndex = 10
-panel.ClipsDescendants = true
-panel.Parent = gui
-Instance.new("UICorner", panel).CornerRadius = UDim.new(0.5, 0)
+local panelFrame = Instance.new("Frame")
+panelFrame.Name = "Panel_v2"
+panelFrame.Size = UDim2.new(0, 160, 0, 0) -- 更窄的面板
+panelFrame.Position = UDim2.new(0.98, -160, 0.02, 35) -- 与按钮对齐
+panelFrame.BackgroundColor3 = mainColor
+panelFrame.ZIndex = 10
+panelFrame.ClipsDescendants = true
+panelFrame.Parent = miniGui
+Instance.new("UICorner", panelFrame).CornerRadius = UDim.new(0.5, 0)
 
-local content = Instance.new("Frame", panel)
-content.Size = UDim2.new(1, -8, 1, -8)
-content.Position = UDim2.new(0, 4, 0, 4)
-content.BackgroundTransparency = 1
+local contentFrame = Instance.new("Frame", panelFrame)
+contentFrame.Size = UDim2.new(1, -8, 1, -8)
+contentFrame.Position = UDim2.new(0, 4, 0, 4)
+contentFrame.BackgroundTransparency = 1
 
-local layout = Instance.new("UIListLayout", content)
-layout.Padding = UDim.new(0, 6)
+local layout = Instance.new("UIListLayout", contentFrame)
+layout.Padding = UDim.new(0, 5)
 
--- 按钮创建（180×35，触摸友好）
-local function createBtn(text, callback)
+-- 按钮创建（150×30，迷你尺寸）
+local function createMiniBtn(text, callback)
     local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0, 180, 0, 35)
-    btn.BackgroundColor3 = Color3.fromRGB(70, 50, 30)
+    btn.Size = UDim2.new(0, 150, 0, 30) -- 更小的按钮
+    btn.BackgroundColor3 = Color3.fromRGB(50, 30, 20)
     btn.Text = text
     btn.TextColor3 = Color3.new(1, 1, 1)
     btn.Font = Enum.Font.SourceSans
-    btn.TextSize = 14
+    btn.TextSize = 12 -- 更小的字体
     btn.ZIndex = 11
-    btn.Parent = content
+    btn.Parent = contentFrame
     Instance.new("UICorner", btn).CornerRadius = UDim.new(0.3, 0)
 
     local isOn = false
     local function toggle()
         isOn = not isOn
-        btn.BackgroundColor3 = isOn and Color3.fromRGB(40, 200, 100) or Color3.fromRGB(70, 50, 30)
+        btn.BackgroundColor3 = isOn and Color3.fromRGB(0, 200, 100) or Color3.fromRGB(50, 30, 20)
         pcall(callback, isOn)
     end
     btn.MouseButton1Click:Connect(toggle)
@@ -91,8 +73,8 @@ local function createBtn(text, callback)
     return btn
 end
 
--- 核心功能（保留5个实用功能）
-createBtn("自动刷", function(enabled)
+-- 核心功能（与之前相同，但完全独立）
+createMiniBtn("自动刷", function(enabled)
     if not enabled then return end
     coroutine.wrap(function()
         while true do
@@ -118,7 +100,7 @@ createBtn("自动刷", function(enabled)
     end)()
 end)
 
-createBtn("自动收", function(enabled)
+createMiniBtn("自动收", function(enabled)
     if not enabled then return end
     coroutine.wrap(function()
         while enabled do
@@ -135,7 +117,7 @@ createBtn("自动收", function(enabled)
     end)()
 end)
 
-createBtn("自动领", function(enabled)
+createMiniBtn("自动领", function(enabled)
     if not enabled then return end
     coroutine.wrap(function()
         local RewardEvent = ReplicatedStorage:WaitForChild("Events"):WaitForChild("RewardEvent")
@@ -151,7 +133,7 @@ createBtn("自动领", function(enabled)
     end)()
 end)
 
-createBtn("升级大小", function(enabled)
+createMiniBtn("升级大小", function(enabled)
     if not enabled then return end
     coroutine.wrap(function()
         local PurchaseEvent = ReplicatedStorage:WaitForChild("Events"):WaitForChild("PurchaseEvent")
@@ -162,7 +144,7 @@ createBtn("升级大小", function(enabled)
     end)()
 end)
 
-createBtn("玩家数据", function()
+createMiniBtn("玩家数据", function()
     local loc = {MaxSize = "体积", Speed = "移速", Multiplier = "乘数", EatSpeed = "吃速"}
     for _, u in LocalPlayer.Upgrades:GetChildren() do
         print(string.format("%s：%i级", loc[u.Name] or u.Name, u.Value))
@@ -175,34 +157,34 @@ local function togglePanel()
     isOpen = not isOpen
     if isOpen then
         local totalH = 0
-        for _, btn in content:GetChildren() do
+        for _, btn in contentFrame:GetChildren() do
             totalH += btn.AbsoluteSize.Y + layout.Padding.Offset
         end
-        panel.Size = UDim2.new(0, 180, 0, totalH + 12)
+        panelFrame.Size = UDim2.new(0, 160, 0, totalH + 10)
     else
-        panel.Size = UDim2.new(0, 180, 0, 0) -- 完全关闭
+        panelFrame.Size = UDim2.new(0, 160, 0, 0) -- 完全关闭
     end
 end
 
-trigger.MouseButton1Click:Connect(togglePanel)
-trigger.TouchTap:Connect(togglePanel) -- 手机触摸必须
+triggerBtn.MouseButton1Click:Connect(togglePanel)
+triggerBtn.TouchTap:Connect(togglePanel) -- 手机触摸必须
 
 -- 触摸拖动优化（防误触）
-local isDragging, startPos, triggerStartPos, panelStartPos = false, Vector2.new(0, 0), trigger.Position, panel.Position
-trigger.InputBegan:Connect(function(input)
+local isDragging, startPos, btnStartPos, panelStartPos = false, Vector2.new(0, 0), triggerBtn.Position, panelFrame.Position
+triggerBtn.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
         isDragging = true
         startPos = input.Position
-        triggerStartPos = trigger.Position
-        panelStartPos = panel.Position
+        btnStartPos = triggerBtn.Position
+        panelStartPos = panelFrame.Position
     end
 end)
 
 UserInputService.InputChanged:Connect(function(input)
     if isDragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
         local delta = input.Position - startPos
-        trigger.Position = UDim2.new(0, triggerStartPos.X.Offset + delta.X, 0, triggerStartPos.Y.Offset + delta.Y)
-        panel.Position = UDim2.new(0, triggerStartPos.X.Offset + delta.X, 0, triggerStartPos.Y.Offset + delta.Y + 40)
+        triggerBtn.Position = UDim2.new(0, btnStartPos.X.Offset + delta.X, 0, btnStartPos.Y.Offset + delta.Y)
+        panelFrame.Position = UDim2.new(0, btnStartPos.X.Offset + delta.X - 60, 0, btnStartPos.Y.Offset + delta.Y + 35)
         startPos = input.Position
     end
 end)
@@ -213,5 +195,6 @@ UserInputService.InputEnded:Connect(function(input)
     end
 end)
 
-print("=== 修复版脚本加载成功 ===")
-print("左上角120×40棕色按钮，点击展开功能，再次点击关闭")
+print("=== 全新迷你脚本加载成功 ===")
+print("右上角显示100×35红色按钮，点击展开功能，再次点击关闭")
+print("按钮可按住拖动到任意位置，不遮挡游戏画面")
