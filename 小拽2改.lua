@@ -1,4 +1,4 @@
--- 核心服务（精简版）
+-- 手机专用核心服务（适配小屏幕）
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
@@ -6,7 +6,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
--- 彻底清理旧UI（关键！）
+-- 彻底清理旧UI（手机端关键！）
 pcall(function() PlayerGui.FinalFunctionalWindow:Destroy() end)
 pcall(function() PlayerGui.TestWindow:Destroy() end)
 pcall(function() PlayerGui.MiniWindow:Destroy() end)
@@ -16,73 +16,77 @@ local autofarm, autoCollectingCubes, autoClaimRewards, showMap, autoeat
 local autoUpgradeSize, autoUpgradeSpd, autoUpgradeMulti, autoUpgradeEat
 local keepUnanchor, boundProtect
 local isOpen = false
-local mainColor = Color3.fromRGB(139, 101, 64)
+local mainColor = Color3.fromRGB(139, 101, 64) -- 棕色主题
 
--- 主GUI（稳定核心）
+-- 主GUI（手机屏幕适配）
 local gui = Instance.new("ScreenGui")
 gui.Name = "FinalFunctionalWindow"
 gui.DisplayOrder = 999999
 gui.IgnoreGuiInset = true
 gui.Parent = PlayerGui
 
--- 触发按钮（150×35，棕色）
+-- 触发按钮（手机版加大尺寸：200×45，适合触摸）
 local trigger = Instance.new("TextButton")
 trigger.Name = "Trigger"
-trigger.Size = UDim2.new(0, 150, 0, 35)
-trigger.Position = UDim2.new(0.2, 0, 0.1, 0)
+trigger.Size = UDim2.new(0, 200, 0, 45) -- 比电脑版大30%
+trigger.Position = UDim2.new(0.1, 0, 0.1, 0) -- 靠左上角，不挡操作
 trigger.BackgroundColor3 = mainColor
 trigger.Text = "小拽吃吃世界"
 trigger.TextColor3 = Color3.new(1, 1, 1)
 trigger.Font = Enum.Font.SourceSansBold
-trigger.TextSize = 14
+trigger.TextSize = 16 -- 加大字体，手机看得清
 trigger.ZIndex = 10
 trigger.Parent = gui
 Instance.new("UICorner", trigger).CornerRadius = UDim.new(0.5, 0)
 
--- 圆柱面板（150宽）
+-- 圆柱面板（手机版加宽：200宽，适配大按钮）
 local cylinderPanel = Instance.new("Frame")
 cylinderPanel.Name = "CylinderPanel"
-cylinderPanel.Size = UDim2.new(0, 150, 0, 0)
-cylinderPanel.Position = UDim2.new(0.2, 0, 0.1, 35)
+cylinderPanel.Size = UDim2.new(0, 200, 0, 0)
+cylinderPanel.Position = UDim2.new(0.1, 0, 0.1, 45)
 cylinderPanel.BackgroundColor3 = mainColor
 cylinderPanel.ZIndex = 10
 cylinderPanel.ClipsDescendants = true
 cylinderPanel.Parent = gui
 Instance.new("UICorner", cylinderPanel).CornerRadius = UDim.new(0.5, 0)
 
--- 内容容器+布局
+-- 内容容器+布局（手机版加大间距）
 local content = Instance.new("Frame", cylinderPanel)
-content.Size = UDim2.new(1, -6, 1, -6)
-content.Position = UDim2.new(0, 3, 0, 3)
+content.Size = UDim2.new(1, -8, 1, -8)
+content.Position = UDim2.new(0, 4, 0, 4)
 content.BackgroundTransparency = 1
 
 local layout = Instance.new("UIListLayout", content)
-layout.Padding = UDim.new(0, 3)
+layout.Padding = UDim.new(0, 5) -- 加大间距，防止误触
 layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 
--- 按钮创建函数（精简版）
+-- 按钮创建函数（手机版优化：180×30，适合触摸）
 local function createBtn(text, callback)
     local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0, 135, 0, 20)
+    btn.Size = UDim2.new(0, 180, 0, 30) -- 手机专用尺寸
     btn.BackgroundColor3 = Color3.fromRGB(70, 50, 30)
     btn.Text = text
     btn.TextColor3 = Color3.new(1, 1, 1)
     btn.Font = Enum.Font.SourceSans
-    btn.TextSize = 10
+    btn.TextSize = 12 -- 清晰可见
     btn.ZIndex = 11
     btn.Parent = content
-    Instance.new("UICorner", btn).CornerRadius = UDim.new(0.2, 0)
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0.3, 0)
 
+    -- 优化触摸响应（手机关键）
     local isOn = false
-    btn.MouseButton1Click:Connect(function()
+    local function toggle()
         isOn = not isOn
         btn.BackgroundColor3 = isOn and Color3.fromRGB(40, 200, 100) or Color3.fromRGB(70, 50, 30)
         pcall(callback, isOn)
-    end)
+    end
+    
+    btn.MouseButton1Click:Connect(toggle)
+    btn.TouchTap:Connect(toggle) -- 适配手机触摸
     return btn
 end
 
--- 核心功能（保留全部14个）
+-- 核心功能（保留全部14个，优化手机性能）
 createBtn("自动刷", function(enabled)
     autofarm = enabled
     if not enabled then return end
@@ -157,7 +161,7 @@ createBtn("自动领", function(enabled)
     end)()
 end)
 
--- 其他功能（完整保留，代码优化）
+-- 其他11个功能（完整保留，手机适配优化）
 createBtn("移动模式", function(enabled) end)
 createBtn("显示地图", function(enabled)
     showMap = enabled
@@ -302,7 +306,7 @@ createBtn("竖屏模式", function(enabled)
     end)
 end)
 
--- 展开/收起+拖动功能（精简稳定版）
+-- 展开/收起+触摸拖动（手机专用优化）
 local function togglePanel()
     isOpen = not isOpen
     if isOpen then
@@ -310,15 +314,16 @@ local function togglePanel()
         for _, btn in content:GetChildren() do
             totalH += btn.AbsoluteSize.Y + layout.Padding.Offset
         end
-        cylinderPanel.Size = UDim2.new(0, 150, 0, totalH + 12)
+        cylinderPanel.Size = UDim2.new(0, 200, 0, totalH + 12)
     else
-        cylinderPanel.Size = UDim2.new(0, 150, 0, 0)
+        cylinderPanel.Size = UDim2.new(0, 200, 0, 0)
     end
 end
 
 trigger.MouseButton1Click:Connect(togglePanel)
-trigger.TouchTap:Connect(togglePanel)
+trigger.TouchTap:Connect(togglePanel) -- 适配手机触摸
 
+-- 触摸拖动优化（防止手机误触）
 local isDragging, startPos, triggerStartPos, panelStartPos = false, Vector2.new(0, 0), trigger.Position, cylinderPanel.Position
 trigger.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
@@ -333,7 +338,7 @@ UserInputService.InputChanged:Connect(function(input)
     if isDragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
         local delta = input.Position - startPos
         trigger.Position = UDim2.new(0, triggerStartPos.X.Offset + delta.X, 0, triggerStartPos.Y.Offset + delta.Y)
-        cylinderPanel.Position = UDim2.new(0, triggerStartPos.X.Offset + delta.X, 0, triggerStartPos.Y.Offset + delta.Y + 35)
+        cylinderPanel.Position = UDim2.new(0, triggerStartPos.X.Offset + delta.X, 0, triggerStartPos.Y.Offset + delta.Y + 45)
         startPos = input.Position
     end
 end)
@@ -344,7 +349,7 @@ UserInputService.InputEnded:Connect(function(input)
     end
 end)
 
--- 强制显示
-trigger.Visible = true
-print("=== 精简版脚本加载完成 ===")
-print("左上角'小拽吃吃世界'按钮，点击展开圆柱面板")
+-- 手机专用提示
+print("=== 手机版脚本加载完成 ===")
+print("左上角棕色按钮可触摸点击，展开功能面板")
+print("按钮加大设计，防止手机误触")
