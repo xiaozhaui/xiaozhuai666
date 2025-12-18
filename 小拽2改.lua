@@ -1,40 +1,58 @@
--- 超纯净手机核心脚本（2025年12月最新适配）
+-- 专用清理脚本（先执行，彻底清除旧残留）
 local Players = game:GetService("Players")
-local UserInputService = game:GetService("UserInputService")
-local RunService = game:GetService("RunService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
--- 全局状态
+-- 删除所有旧UI和残留
+pcall(function() PlayerGui.FinalFunctionalWindow:Destroy() end)
+pcall(function() PlayerGui.TestWindow:Destroy() end)
+pcall(function() PlayerGui.MiniWindow:Destroy() end)
+pcall(function() PlayerGui.TestUI:Destroy() end)
+pcall(function() PlayerGui.ClickTest:Destroy() end)
+pcall(function() PlayerGui:FindFirstChildWhichIsA("ScreenGui"):Destroy() end)
+
+-- 清理全局变量
+autofarm = nil
+autoCollectingCubes = nil
+autoClaimRewards = nil
+autoUpgradeSize = nil
+
+print("✅ 旧脚本残留已彻底清除！")
+
+-- 超精简修复版脚本（默认关闭+尺寸优化）
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+-- 全局状态（默认关闭）
 local isOpen = false
 local mainColor = Color3.fromRGB(139, 101, 64)
 
--- 主GUI（极简设计，只保留必要元素）
+-- 主GUI
 local gui = Instance.new("ScreenGui")
 gui.Name = "FinalFunctionalWindow"
 gui.DisplayOrder = 999999
 gui.IgnoreGuiInset = true
 gui.Parent = PlayerGui
 
--- 触发按钮（手机超大：240×55，触摸零失误）
+-- 触发按钮（缩小到120×40，左上角，不挡操作）
 local trigger = Instance.new("TextButton")
-trigger.Size = UDim2.new(0, 240, 0, 55)
+trigger.Size = UDim2.new(0, 120, 0, 40)
 trigger.Position = UDim2.new(0.02, 0, 0.02, 0)
 trigger.BackgroundColor3 = mainColor
-trigger.Text = "小拽吃吃世界"
+trigger.Text = "小拽功能"
 trigger.TextColor3 = Color3.new(1, 1, 1)
 trigger.Font = Enum.Font.SourceSansBold
-trigger.TextSize = 20
+trigger.TextSize = 16
 trigger.ZIndex = 10
 trigger.Parent = gui
 Instance.new("UICorner", trigger).CornerRadius = UDim.new(0.5, 0)
 
--- 面板+容器
+-- 面板+容器（默认高度0，完全关闭）
 local panel = Instance.new("Frame")
 panel.Name = "Panel"
-panel.Size = UDim2.new(0, 240, 0, 0)
-panel.Position = UDim2.new(0.02, 0, 0.02, 55)
+panel.Size = UDim2.new(0, 180, 0, 0) -- 默认关闭
+panel.Position = UDim2.new(0.02, 0, 0.02, 40)
 panel.BackgroundColor3 = mainColor
 panel.ZIndex = 10
 panel.ClipsDescendants = true
@@ -47,12 +65,12 @@ content.Position = UDim2.new(0, 4, 0, 4)
 content.BackgroundTransparency = 1
 
 local layout = Instance.new("UIListLayout", content)
-layout.Padding = UDim.new(0, 7)
+layout.Padding = UDim.new(0, 6)
 
--- 按钮创建（手机专用：200×40，触摸友好）
+-- 按钮创建（180×35，触摸友好）
 local function createBtn(text, callback)
     local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0, 200, 0, 40)
+    btn.Size = UDim2.new(0, 180, 0, 35)
     btn.BackgroundColor3 = Color3.fromRGB(70, 50, 30)
     btn.Text = text
     btn.TextColor3 = Color3.new(1, 1, 1)
@@ -69,11 +87,11 @@ local function createBtn(text, callback)
         pcall(callback, isOn)
     end
     btn.MouseButton1Click:Connect(toggle)
-    btn.TouchTap:Connect(toggle) -- 手机触摸必备！
+    btn.TouchTap:Connect(toggle) -- 手机触摸必备
     return btn
 end
 
--- 核心功能（保留最实用的5个，其他功能可后续添加）
+-- 核心功能（保留5个实用功能）
 createBtn("自动刷", function(enabled)
     if not enabled then return end
     coroutine.wrap(function()
@@ -152,7 +170,7 @@ createBtn("玩家数据", function()
     game.StarterGui:SetCore("DevConsoleVisible", true)
 end)
 
--- 展开/收起功能
+-- 展开/收起功能（默认关闭）
 local function togglePanel()
     isOpen = not isOpen
     if isOpen then
@@ -160,14 +178,40 @@ local function togglePanel()
         for _, btn in content:GetChildren() do
             totalH += btn.AbsoluteSize.Y + layout.Padding.Offset
         end
-        panel.Size = UDim2.new(0, 240, 0, totalH + 12)
+        panel.Size = UDim2.new(0, 180, 0, totalH + 12)
     else
-        panel.Size = UDim2.new(0, 240, 0, 0)
+        panel.Size = UDim2.new(0, 180, 0, 0) -- 完全关闭
     end
 end
 
 trigger.MouseButton1Click:Connect(togglePanel)
-trigger.TouchTap:Connect(togglePanel) -- 手机触摸必须！
+trigger.TouchTap:Connect(togglePanel) -- 手机触摸必须
 
-print("=== 超纯净脚本加载成功 ===")
-print("左上角240×55棕色按钮，触摸点击展开功能")
+-- 触摸拖动优化（防误触）
+local isDragging, startPos, triggerStartPos, panelStartPos = false, Vector2.new(0, 0), trigger.Position, panel.Position
+trigger.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        isDragging = true
+        startPos = input.Position
+        triggerStartPos = trigger.Position
+        panelStartPos = panel.Position
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if isDragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        local delta = input.Position - startPos
+        trigger.Position = UDim2.new(0, triggerStartPos.X.Offset + delta.X, 0, triggerStartPos.Y.Offset + delta.Y)
+        panel.Position = UDim2.new(0, triggerStartPos.X.Offset + delta.X, 0, triggerStartPos.Y.Offset + delta.Y + 40)
+        startPos = input.Position
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        isDragging = false
+    end
+end)
+
+print("=== 修复版脚本加载成功 ===")
+print("左上角120×40棕色按钮，点击展开功能，再次点击关闭")
