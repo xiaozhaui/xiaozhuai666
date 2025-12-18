@@ -16,21 +16,64 @@ if LocalPlayer.PlayerGui:FindFirstChild("MobileFloatingWindow") then
     LocalPlayer.PlayerGui.MobileFloatingWindow:Destroy()
 end
 
--- 主GUI（确保在PlayerGui，不被拦截）
+-- 主GUI（置顶不遮挡）
 local gui = Instance.new("ScreenGui")
 gui.Name = "MobileFloatingWindow"
 gui.ResetOnSpawn = false
-gui.DisplayOrder = 999 -- 置顶，避免被遮挡
+gui.DisplayOrder = 999
 gui.Parent = LocalPlayer.PlayerGui
 
--- 主窗口
-local frame = Instance.new("Frame", gui)
-frame.Size = UDim2.new(0, 320, 0, 450)
-frame.Position = UDim2.new(0, 60, 0, 60)
+-- ======================== 全局彩虹光带配置（统一色调，流动同步）========================
+local hue = 0
+-- 光带更新循环（只跑一次，所有光带共用，不卡顿）
+RunService.RenderStepped:Connect(function(dt)
+    hue = (hue + 1.2) % 360 -- 统一流动速度
+end)
+
+-- 创建彩虹光带框架（通用函数）
+local function createRainbowBorder(parent, size, offset)
+    local border = Instance.new("Frame")
+    border.Size = size
+    border.Position = offset or UDim2.new(0, 0, 0, 0)
+    border.BackgroundTransparency = 1
+    border.ZIndex = parent.ZIndex + 1
+    border.Parent = parent.Parent
+    
+    local uiStroke = Instance.new("UIStroke", border)
+    uiStroke.Thickness = 3 -- 光带厚度
+    uiStroke.LineJoinMode = Enum.LineJoinMode.Round -- 圆角衔接
+    uiStroke.LineCapMode = Enum.LineCapMode.Round
+    
+    -- 绑定彩虹色循环
+    RunService.RenderStepped:Connect(function()
+        uiStroke.Color = Color3.fromHSV(hue / 360, 0.9, 1)
+    end)
+    
+    return border
+end
+
+-- ======================== 主悬浮窗（带彩色光带）========================
+-- 光带外层框架（包裹主窗口，实现整体光带）
+local mainBorder = Instance.new("Frame")
+mainBorder.Size = UDim2.new(0, 326, 0, 456) -- 比主窗口大6像素，容纳光带
+mainBorder.Position = UDim2.new(0, 57, 0, 57) -- 对应主窗口位置偏移
+mainBorder.BackgroundTransparency = 1
+mainBorder.ZIndex = 999
+mainBorder.Parent = gui
+
+-- 主窗口光带（流动彩虹边框）
+local mainRainbowBorder = createRainbowBorder(mainBorder, UDim2.new(1, 0, 1, 0))
+local mainUISTroke = mainRainbowBorder:FindFirstChildOfClass("UIStroke")
+mainUISTroke.Thickness = 4 -- 主窗口光带更粗
+
+-- 主窗口（内部内容容器）
+local frame = Instance.new("Frame", mainBorder)
+frame.Size = UDim2.new(1, -6, 1, -6) -- 向内缩6像素，留出光带空间
+frame.Position = UDim2.new(0, 3, 0, 3)
 frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-frame.BorderSizePixel = 2
-frame.BorderColor3 = Color3.fromRGB(255, 255, 255)
+frame.BorderSizePixel = 0 -- 去掉原边框，用光带替代
 frame.ClipsDescendants = true
+frame.ZIndex = 1000
 
 -- 标题栏+拖动
 local dragArea = Instance.new("TextButton", frame)
@@ -41,32 +84,40 @@ dragArea.TextColor3 = Color3.new(1,1,1)
 dragArea.Font = Enum.Font.SourceSansBold
 dragArea.TextSize = 18
 dragArea.AutoButtonColor = true
+dragArea.ZIndex = 1001
 
--- 最小化按钮（优化点击反馈）
+-- 最小化按钮（平躺椭圆形）
 local miniBtn = Instance.new("TextButton", dragArea)
-miniBtn.Size = UDim2.new(0, 40, 0, 30)
-miniBtn.Position = UDim2.new(1, -40, 0, 0)
+miniBtn.Size = UDim2.new(0, 40, 0, 20) -- 平躺椭圆：宽40，高20
+miniBtn.Position = UDim2.new(1, -45, 0.5, -10)
 miniBtn.Text = "-"
 miniBtn.TextColor3 = Color3.new(1,1,1)
 miniBtn.BackgroundColor3 = Color3.fromRGB(70,70,70)
 miniBtn.AutoButtonColor = true
-miniBtn.TextSize = 22
+miniBtn.TextSize = 18
+-- 变成平躺椭圆形
+local miniBtnCorner = Instance.new("UICorner", miniBtn)
+miniBtnCorner.CornerRadius = UDim.new(0.5, 0) -- 圆角=高度的一半，完美椭圆
+-- 最小化按钮光带
+createRainbowBorder(miniBtn, UDim2.new(1, 6, 1, 6), UDim2.new(0, -3, 0, -3))
 
--- 内容区（滚动容器）
+-- 内容区（白色滚动条）
 local scrollFrame = Instance.new("ScrollingFrame", frame)
 scrollFrame.Size = UDim2.new(1, 0, 1, -30)
 scrollFrame.Position = UDim2.new(0, 0, 0, 30)
 scrollFrame.BackgroundTransparency = 1
-scrollFrame.ScrollBarThickness = 6
-scrollFrame.ScrollBarImageColor3 = Color3.fromRGB(80,80,80)
-scrollFrame.CanvasSize = UDim2.new(0, 0, 0, 800)
+scrollFrame.ScrollBarThickness = 8 -- 滚动条加粗，更易点击
+scrollFrame.ScrollBarImageColor3 = Color3.new(1, 1, 1) -- 白色滚动条
+scrollFrame.ScrollBarBackgroundColor3 = Color3.fromRGB(40, 40, 40) -- 背景色，对比明显
+scrollFrame.CanvasSize = UDim2.new(0, 0, 0, 820)
+scrollFrame.ZIndex = 1000
 
 local contentUI = Instance.new("UIListLayout", scrollFrame)
-contentUI.Padding = UDim.new(0, 8)
+contentUI.Padding = UDim.new(0, 10)
 contentUI.HorizontalAlignment = Enum.HorizontalAlignment.Center
 contentUI.VerticalAlignment = Enum.VerticalAlignment.Top
 
--- 缩放按钮
+-- 缩放按钮（保留原功能，优化样式）
 local resizeBtn = Instance.new("ImageButton", frame)
 resizeBtn.Size = UDim2.new(0, 36, 0, 36)
 resizeBtn.Position = UDim2.new(1, -18, 1, -18)
@@ -76,31 +127,39 @@ resizeBtn.Image = "rbxassetid://3926305904"
 resizeBtn.ImageRectOffset = Vector2.new(84, 284)
 resizeBtn.ImageRectSize = Vector2.new(36, 36)
 resizeBtn.AutoButtonColor = true
+resizeBtn.ZIndex = 1001
+-- 缩放按钮光带
+createRainbowBorder(resizeBtn, UDim2.new(1, 6, 1, 6), UDim2.new(0, -3, 0, -3))
 
--- ======================== 关键修复：迷你圆形按钮（彩虹光带+可见性）========================
-local miniCircle = Instance.new("TextButton", gui)
-miniCircle.Size = UDim2.new(0, 70, 0, 70) -- 放大按钮，更容易看到
--- 调整位置到左下角（绝对可见，不会超出屏幕）
-miniCircle.Position = UDim2.new(0, 30, 1, -100)
-miniCircle.BackgroundColor3 = Color3.fromRGB(25,25,25)
-miniCircle.Text = "+"
-miniCircle.TextSize = 36 -- 放大文字，更显眼
-miniCircle.TextColor3 = Color3.new(1,1,1)
-miniCircle.BorderSizePixel = 4 -- 加粗边框，彩虹效果更明显
-miniCircle.Visible = false
-miniCircle.AutoButtonColor = true
-miniCircle.ZIndex = 10 -- 确保在最上层
-Instance.new("UICorner", miniCircle).CornerRadius = UDim.new(1,0)
+-- ======================== 最小化后的平躺椭圆形按钮（带彩色流动光圈）========================
+local miniOval = Instance.new("TextButton", gui)
+miniOval.Size = UDim2.new(0, 100, 0, 50) -- 平躺椭圆：宽100，高50
+miniOval.Position = UDim2.new(0, 30, 1, -80) -- 左下角，不遮挡操作
+miniOval.BackgroundColor3 = Color3.fromRGB(25,25,25)
+miniOval.Text = "+"
+miniOval.TextSize = 28
+miniOval.TextColor3 = Color3.new(1,1,1)
+miniOval.Visible = false
+miniOval.AutoButtonColor = true
+miniOval.ZIndex = 1000
+-- 平躺椭圆形
+local miniOvalCorner = Instance.new("UICorner", miniOval)
+miniOvalCorner.CornerRadius = UDim.new(0.5, 0)
 
--- 🌈 彩虹边框动画（强制运行，确保光带显示）
-local hue = 0
+-- 流动光圈（双层光带，模拟流动效果）
+-- 内层光带（跟随主色调）
+local miniInnerBorder = createRainbowBorder(miniOval, UDim2.new(1, -4, 1, -4), UDim2.new(0, 2, 0, 2))
+local innerStroke = miniInnerBorder:FindFirstChildOfClass("UIStroke")
+innerStroke.Thickness = 2
+
+-- 外层光带（延迟色调，模拟流动）
+local miniOuterBorder = createRainbowBorder(miniOval, UDim2.new(1, 8, 1, 8), UDim2.new(0, -4, 0, -4))
+local outerStroke = miniOuterBorder:FindFirstChildOfClass("UIStroke")
+outerStroke.Thickness = 3
+-- 外层光带延迟流动
 RunService.RenderStepped:Connect(function()
-    if miniCircle.Visible then
-        hue = (hue + 2) % 360 -- 加快速度，光带更明显
-        miniCircle.BorderColor3 = Color3.fromHSV(hue / 360, 1, 1)
-        -- 额外添加背景微光，更易识别
-        miniCircle.BackgroundColor3 = Color3.fromHSV(hue / 360, 0.3, 0.2)
-    end
+    local delayedHue = (hue + 60) % 360 -- 延迟60度，形成流动感
+    outerStroke.Color = Color3.fromHSV(delayedHue / 360, 0.9, 1)
 end)
 
 -- ======================== 核心功能函数（不变）========================
@@ -133,44 +192,76 @@ local function speedPrice(level) return math.floor((level * 3) ^ 3 / 200) * 1000
 local function multiplierPrice(level) return math.floor((level * 10) ^ 3 / 200) * 1000 end
 local function eatSpeedPrice(level) return math.floor((level * 10) ^ 3 / 200) * 2000 end
 
--- ======================== 功能按钮创建（不变）========================
+-- ======================== 功能按钮（平躺椭圆形+彩色光带）========================
 local function createToggle(parent, text, callback)
-    local btn = Instance.new("TextButton", parent)
-    btn.Size = UDim2.new(0, 280, 0, 40)
+    -- 按钮容器（承载按钮和光带）
+    local btnContainer = Instance.new("Frame")
+    btnContainer.Size = UDim2.new(0, 272, 0, 38) -- 比按钮大6像素，容纳光带
+    btnContainer.BackgroundTransparency = 1
+    btnContainer.Parent = parent
+    
+    -- 功能按钮（平躺椭圆形）
+    local btn = Instance.new("TextButton", btnContainer)
+    btn.Size = UDim2.new(1, -6, 1, -6)
+    btn.Position = UDim2.new(0, 3, 0, 3)
     btn.BackgroundColor3 = Color3.fromRGB(60, 100, 180)
     btn.TextColor3 = Color3.new(1,1,1)
     btn.Text = text
     btn.Font = Enum.Font.SourceSans
-    btn.TextSize = 18
+    btn.TextSize = 16 -- 适配小尺寸按钮
     btn.AutoButtonColor = true
+    btn.ZIndex = 1001
+    -- 平躺椭圆形
+    local btnCorner = Instance.new("UICorner", btn)
+    btnCorner.CornerRadius = UDim.new(0.5, 0)
     
+    -- 按钮彩色光带
+    createRainbowBorder(btn, UDim2.new(1, 0, 1, 0))
+    
+    -- 开关逻辑
     local isEnabled = false
     btn.MouseButton1Click:Connect(function()
         isEnabled = not isEnabled
         btn.BackgroundColor3 = isEnabled and Color3.fromRGB(40, 200, 100) or Color3.fromRGB(60, 100, 180)
         callback(isEnabled)
     end)
-    return btn
+    return btnContainer
 end
 
 local function createButton(parent, text, callback)
-    local btn = Instance.new("TextButton", parent)
-    btn.Size = UDim2.new(0, 280, 0, 40)
+    -- 按钮容器
+    local btnContainer = Instance.new("Frame")
+    btnContainer.Size = UDim2.new(0, 272, 0, 38)
+    btnContainer.BackgroundTransparency = 1
+    btnContainer.Parent = parent
+    
+    -- 功能按钮（平躺椭圆形）
+    local btn = Instance.new("TextButton", btnContainer)
+    btn.Size = UDim2.new(1, -6, 1, -6)
+    btn.Position = UDim2.new(0, 3, 0, 3)
     btn.BackgroundColor3 = Color3.fromRGB(180, 80, 120)
     btn.TextColor3 = Color3.new(1,1,1)
     btn.Text = text
     btn.Font = Enum.Font.SourceSans
-    btn.TextSize = 18
+    btn.TextSize = 16
     btn.AutoButtonColor = true
+    btn.ZIndex = 1001
+    -- 平躺椭圆形
+    local btnCorner = Instance.new("UICorner", btn)
+    btnCorner.CornerRadius = UDim.new(0.5, 0)
+    
+    -- 按钮彩色光带
+    createRainbowBorder(btn, UDim2.new(1, 0, 1, 0))
+    
     btn.MouseButton1Click:Connect(callback)
-    return btn
+    return btnContainer
 end
 
+-- ======================== 所有功能按钮创建（不变）========================
 -- 自动组按钮
 createToggle(scrollFrame, "自动刷", function(enabled)
     autofarm = enabled
     if not enabled then return end
-    
     coroutine.wrap(function()
         local text = Drawing.new("Text")
         text.Outline = true
@@ -317,7 +408,6 @@ end)
 createToggle(scrollFrame, "自动收", function(enabled)
     autoCollectingCubes = enabled
     if not enabled then return end
-    
     coroutine.wrap(function()
         LocalPlayer.PlayerScripts.CubeVis.Enabled = false
         while autoCollectingCubes do
@@ -338,7 +428,6 @@ end)
 createToggle(scrollFrame, "自动领", function(enabled)
     autoClaimRewards = enabled
     if not enabled then return end
-    
     coroutine.wrap(function()
         while autoClaimRewards do
             task.wait(1)
@@ -355,7 +444,6 @@ createToggle(scrollFrame, "显示地图", function(enabled) showMap = enabled en
 createToggle(scrollFrame, "自动吃", function(enabled)
     autoeat = enabled
     if not enabled then return end
-    
     coroutine.wrap(function()
         while autoeat do
             task.wait()
@@ -371,7 +459,6 @@ end)
 createToggle(scrollFrame, "自动升级大小", function(enabled)
     autoUpgradeSize = enabled
     if not enabled then return end
-    
     coroutine.wrap(function()
         game.CoreGui.PurchasePromptApp.Enabled = false
         while autoUpgradeSize do
@@ -385,7 +472,6 @@ end)
 createToggle(scrollFrame, "自动升级移速", function(enabled)
     autoUpgradeSpd = enabled
     if not enabled then return end
-    
     coroutine.wrap(function()
         game.CoreGui.PurchasePromptApp.Enabled = false
         while autoUpgradeSpd do
@@ -399,7 +485,6 @@ end)
 createToggle(scrollFrame, "自动升级乘数", function(enabled)
     autoUpgradeMulti = enabled
     if not enabled then return end
-    
     coroutine.wrap(function()
         game.CoreGui.PurchasePromptApp.Enabled = false
         while autoUpgradeMulti do
@@ -413,7 +498,6 @@ end)
 createToggle(scrollFrame, "自动升级吃速", function(enabled)
     autoUpgradeEat = enabled
     if not enabled then return end
-    
     coroutine.wrap(function()
         game.CoreGui.PurchasePromptApp.Enabled = false
         while autoUpgradeEat do
@@ -427,7 +511,6 @@ end)
 createToggle(scrollFrame, "取消锚固", function(enabled)
     keepUnanchor = enabled
     if not enabled then return end
-    
     coroutine.wrap(function()
         while keepUnanchor do
             task.wait()
@@ -441,7 +524,6 @@ end)
 createToggle(scrollFrame, "边界保护", function(enabled)
     boundProtect = enabled
     if not enabled then return end
-    
     coroutine.wrap(function()
         while boundProtect do
             task.wait()
@@ -484,7 +566,7 @@ createToggle(scrollFrame, "竖屏模式", function(enabled)
     LocalPlayer.PlayerGui.ScreenOrientation = enabled and Enum.ScreenOrientation.Portrait or Enum.ScreenOrientation.LandscapeRight
 end)
 
--- ======================== 悬浮窗基础功能（关键修复）========================
+-- ======================== 悬浮窗基础功能（不变）========================
 -- 拖动逻辑
 local dragging, draggingMini = false, false
 local dragStart, startPos, miniStart, miniPos
@@ -493,7 +575,7 @@ dragArea.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.Touch then
         dragging = true
         dragStart = input.Position
-        startPos = frame.Position
+        startPos = mainBorder.Position -- 拖动光带框架，同步窗口和光带
     end
 end)
 
@@ -501,25 +583,25 @@ dragArea.InputEnded:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.Touch then dragging = false end
 end)
 
-miniCircle.InputBegan:Connect(function(input)
+miniOval.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.Touch then
         draggingMini = true
         miniStart = input.Position
-        miniPos = miniCircle.Position
+        miniPos = miniOval.Position
     end
 end)
 
-miniCircle.InputEnded:Connect(function(input)
+miniOval.InputEnded:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.Touch then draggingMini = false end
 end)
 
 UserInputService.TouchMoved:Connect(function(input)
     if dragging then
         local delta = input.Position - dragStart
-        frame.Position = UDim2.new(0, startPos.X.Offset + delta.X, 0, startPos.Y.Offset + delta.Y)
+        mainBorder.Position = UDim2.new(0, startPos.X.Offset + delta.X, 0, startPos.Y.Offset + delta.Y)
     elseif draggingMini then
         local delta = input.Position - miniStart
-        miniCircle.Position = UDim2.new(0, miniPos.X.Offset + delta.X, 0, miniPos.Y.Offset + delta.Y)
+        miniOval.Position = UDim2.new(0, miniPos.X.Offset + delta.X, 0, miniPos.Y.Offset + delta.Y)
     end
 end)
 
@@ -531,7 +613,7 @@ resizeBtn.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.Touch then
         resizing = true
         resizeStartPos = input.Position
-        resizeStartSize = frame.Size
+        resizeStartSize = mainBorder.Size -- 缩放光带框架
     end
 end)
 
@@ -542,33 +624,31 @@ end)
 UserInputService.TouchMoved:Connect(function(input)
     if resizing then
         local delta = input.Position - resizeStartPos
-        local newW = math.max(280, resizeStartSize.X.Offset + delta.X)
-        local newH = math.max(400, resizeStartSize.Y.Offset + delta.Y)
-        frame.Size = UDim2.new(0, newW, 0, newH)
+        local newW = math.max(290, resizeStartSize.X.Offset + delta.X)
+        local newH = math.max(420, resizeStartSize.Y.Offset + delta.Y)
+        mainBorder.Size = UDim2.new(0, newW, 0, newH)
+        frame.Size = UDim2.new(1, -6, 1, -6) -- 同步主窗口大小
     end
 end)
 
--- ======================== 关键修复：最小化/双击打开逻辑 =======================
--- 最小化：隐藏主窗口，强制显示圆形按钮
+-- 最小化/双击打开逻辑
 miniBtn.InputEnded:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.Touch then
         frame.Visible = false
-        miniCircle.Visible = true -- 强制显示，避免被覆盖
-        print("最小化成功，圆形按钮已显示") -- 调试用，可删除
+        mainRainbowBorder.Visible = false -- 隐藏主窗口光带
+        miniOval.Visible = true
     end
 end)
 
--- 双击圆形按钮打开（延长间隔到400ms，更易触发）
 local lastClickTime = 0
-local doubleClickDelay = 400 -- 延长双击间隔，适配移动端操作
-miniCircle.InputEnded:Connect(function(input)
+local doubleClickDelay = 400
+miniOval.InputEnded:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.Touch then
         local currentTime = tick()
-        print("点击圆形按钮，间隔：", currentTime - lastClickTime) -- 调试用，可删除
         if currentTime - lastClickTime < doubleClickDelay then
-            -- 双击成功，恢复窗口
-            miniCircle.Visible = false
+            miniOval.Visible = false
             frame.Visible = true
+            mainRainbowBorder.Visible = true -- 恢复主窗口光带
         end
         lastClickTime = currentTime
     end
