@@ -1,92 +1,103 @@
--- 手机专用核心服务（适配小屏幕）
+-- 【第一步：彻底清理所有旧脚本（解决"开始测试"问题）】
 local Players = game:GetService("Players")
-local UserInputService = game:GetService("UserInputService")
-local RunService = game:GetService("RunService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
--- 彻底清理旧UI（手机端关键！）
+-- 删除所有可能的旧UI
 pcall(function() PlayerGui.FinalFunctionalWindow:Destroy() end)
 pcall(function() PlayerGui.TestWindow:Destroy() end)
 pcall(function() PlayerGui.MiniWindow:Destroy() end)
+pcall(function() PlayerGui:FindFirstChild("TestUI"):Destroy() end)
+pcall(function() PlayerGui:FindFirstChild("ClickTest"):Destroy() end)
+
+-- 清理内存中的旧脚本变量
+autofarm = nil
+autoCollectingCubes = nil
+autoClaimRewards = nil
+showMap = nil
+autoeat = nil
+autoUpgradeSize = nil
+autoUpgradeSpd = nil
+autoUpgradeMulti = nil
+autoUpgradeEat = nil
+keepUnanchor = nil
+boundProtect = nil
+
+print("✅ 旧脚本已彻底清除！")
+
+-- 【第二步：手机超精简功能脚本（无冗余，注入快）】
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 -- 全局状态
-local autofarm, autoCollectingCubes, autoClaimRewards, showMap, autoeat
-local autoUpgradeSize, autoUpgradeSpd, autoUpgradeMulti, autoUpgradeEat
-local keepUnanchor, boundProtect
 local isOpen = false
-local mainColor = Color3.fromRGB(139, 101, 64) -- 棕色主题
+local mainColor = Color3.fromRGB(139, 101, 64)
 
--- 主GUI（手机屏幕适配）
+-- 主GUI（手机超精简版）
 local gui = Instance.new("ScreenGui")
 gui.Name = "FinalFunctionalWindow"
 gui.DisplayOrder = 999999
 gui.IgnoreGuiInset = true
 gui.Parent = PlayerGui
 
--- 触发按钮（手机版加大尺寸：200×45，适合触摸）
+-- 触发按钮（手机超大：220×50，触摸精准）
 local trigger = Instance.new("TextButton")
-trigger.Name = "Trigger"
-trigger.Size = UDim2.new(0, 200, 0, 45) -- 比电脑版大30%
-trigger.Position = UDim2.new(0.1, 0, 0.1, 0) -- 靠左上角，不挡操作
+trigger.Size = UDim2.new(0, 220, 0, 50)
+trigger.Position = UDim2.new(0.05, 0, 0.05, 0) -- 靠左上角，不挡操作
 trigger.BackgroundColor3 = mainColor
 trigger.Text = "小拽吃吃世界"
 trigger.TextColor3 = Color3.new(1, 1, 1)
 trigger.Font = Enum.Font.SourceSansBold
-trigger.TextSize = 16 -- 加大字体，手机看得清
+trigger.TextSize = 18
 trigger.ZIndex = 10
 trigger.Parent = gui
 Instance.new("UICorner", trigger).CornerRadius = UDim.new(0.5, 0)
 
--- 圆柱面板（手机版加宽：200宽，适配大按钮）
-local cylinderPanel = Instance.new("Frame")
-cylinderPanel.Name = "CylinderPanel"
-cylinderPanel.Size = UDim2.new(0, 200, 0, 0)
-cylinderPanel.Position = UDim2.new(0.1, 0, 0.1, 45)
-cylinderPanel.BackgroundColor3 = mainColor
-cylinderPanel.ZIndex = 10
-cylinderPanel.ClipsDescendants = true
-cylinderPanel.Parent = gui
-Instance.new("UICorner", cylinderPanel).CornerRadius = UDim.new(0.5, 0)
+-- 面板+容器（手机适配）
+local panel = Instance.new("Frame")
+panel.Name = "Panel"
+panel.Size = UDim2.new(0, 220, 0, 0)
+panel.Position = UDim2.new(0.05, 0, 0.05, 50)
+panel.BackgroundColor3 = mainColor
+panel.ZIndex = 10
+panel.ClipsDescendants = true
+panel.Parent = gui
+Instance.new("UICorner", panel).CornerRadius = UDim.new(0.5, 0)
 
--- 内容容器+布局（手机版加大间距）
-local content = Instance.new("Frame", cylinderPanel)
+local content = Instance.new("Frame", panel)
 content.Size = UDim2.new(1, -8, 1, -8)
 content.Position = UDim2.new(0, 4, 0, 4)
 content.BackgroundTransparency = 1
 
 local layout = Instance.new("UIListLayout", content)
-layout.Padding = UDim.new(0, 5) -- 加大间距，防止误触
-layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+layout.Padding = UDim.new(0, 6) -- 防误触间距
 
--- 按钮创建函数（手机版优化：180×30，适合触摸）
+-- 按钮创建（手机专用：190×35，触摸友好）
 local function createBtn(text, callback)
     local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0, 180, 0, 30) -- 手机专用尺寸
+    btn.Size = UDim2.new(0, 190, 0, 35)
     btn.BackgroundColor3 = Color3.fromRGB(70, 50, 30)
     btn.Text = text
     btn.TextColor3 = Color3.new(1, 1, 1)
     btn.Font = Enum.Font.SourceSans
-    btn.TextSize = 12 -- 清晰可见
+    btn.TextSize = 13
     btn.ZIndex = 11
     btn.Parent = content
     Instance.new("UICorner", btn).CornerRadius = UDim.new(0.3, 0)
 
-    -- 优化触摸响应（手机关键）
     local isOn = false
     local function toggle()
         isOn = not isOn
         btn.BackgroundColor3 = isOn and Color3.fromRGB(40, 200, 100) or Color3.fromRGB(70, 50, 30)
         pcall(callback, isOn)
     end
-    
     btn.MouseButton1Click:Connect(toggle)
-    btn.TouchTap:Connect(toggle) -- 适配手机触摸
+    btn.TouchTap:Connect(toggle) -- 手机触摸必备
     return btn
 end
 
--- 核心功能（保留全部14个，优化手机性能）
+-- 核心功能（保留全部14个，手机优化）
 createBtn("自动刷", function(enabled)
     autofarm = enabled
     if not enabled then return end
@@ -161,7 +172,7 @@ createBtn("自动领", function(enabled)
     end)()
 end)
 
--- 其他11个功能（完整保留，手机适配优化）
+-- 其他11个功能（完整保留，手机优化）
 createBtn("移动模式", function(enabled) end)
 createBtn("显示地图", function(enabled)
     showMap = enabled
@@ -306,7 +317,7 @@ createBtn("竖屏模式", function(enabled)
     end)
 end)
 
--- 展开/收起+触摸拖动（手机专用优化）
+-- 展开/收起+触摸拖动（手机专用）
 local function togglePanel()
     isOpen = not isOpen
     if isOpen then
@@ -314,23 +325,23 @@ local function togglePanel()
         for _, btn in content:GetChildren() do
             totalH += btn.AbsoluteSize.Y + layout.Padding.Offset
         end
-        cylinderPanel.Size = UDim2.new(0, 200, 0, totalH + 12)
+        panel.Size = UDim2.new(0, 220, 0, totalH + 12)
     else
-        cylinderPanel.Size = UDim2.new(0, 200, 0, 0)
+        panel.Size = UDim2.new(0, 220, 0, 0)
     end
 end
 
 trigger.MouseButton1Click:Connect(togglePanel)
-trigger.TouchTap:Connect(togglePanel) -- 适配手机触摸
+trigger.TouchTap:Connect(togglePanel) -- 手机触摸必须
 
--- 触摸拖动优化（防止手机误触）
-local isDragging, startPos, triggerStartPos, panelStartPos = false, Vector2.new(0, 0), trigger.Position, cylinderPanel.Position
+-- 触摸拖动优化（防误触）
+local isDragging, startPos, triggerStartPos, panelStartPos = false, Vector2.new(0, 0), trigger.Position, panel.Position
 trigger.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
         isDragging = true
         startPos = input.Position
         triggerStartPos = trigger.Position
-        panelStartPos = cylinderPanel.Position
+        panelStartPos = panel.Position
     end
 end)
 
@@ -338,7 +349,7 @@ UserInputService.InputChanged:Connect(function(input)
     if isDragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
         local delta = input.Position - startPos
         trigger.Position = UDim2.new(0, triggerStartPos.X.Offset + delta.X, 0, triggerStartPos.Y.Offset + delta.Y)
-        cylinderPanel.Position = UDim2.new(0, triggerStartPos.X.Offset + delta.X, 0, triggerStartPos.Y.Offset + delta.Y + 45)
+        panel.Position = UDim2.new(0, triggerStartPos.X.Offset + delta.X, 0, triggerStartPos.Y.Offset + delta.Y + 50)
         startPos = input.Position
     end
 end)
@@ -349,7 +360,5 @@ UserInputService.InputEnded:Connect(function(input)
     end
 end)
 
--- 手机专用提示
-print("=== 手机版脚本加载完成 ===")
-print("左上角棕色按钮可触摸点击，展开功能面板")
-print("按钮加大设计，防止手机误触")
+print("=== 手机终极脚本加载完成 ===")
+print("左上角220×50棕色按钮，触摸点击展开功能")
