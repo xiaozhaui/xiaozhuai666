@@ -1,13 +1,12 @@
--- FloatingWin.client.lua   （建议放在 StarterGui 下作为 LocalScript）
--- 悬浮窗：可拖拽 + 最小化 + RightShift 快捷键切换 + 滚动容器（不再溢出窗体）
--- 仅 UI/交互层，不含游戏逻辑。把下方回调里 print(...) 换成你自己的逻辑即可。
+-- FloatingWin.client.lua  （直接整段替换）
+-- 悬浮窗：拖拽 / 最小化 / RightShift 显隐 / 严格裁剪 + 可滚动内容（不再溢出）
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 
 local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
 
--- 防重复创建
+-- 防重复
 local old = playerGui:FindFirstChild("FloatingWin")
 if old then old:Destroy() end
 
@@ -27,7 +26,8 @@ win.Position = UDim2.fromOffset(120, 120)
 win.BackgroundColor3 = Color3.fromRGB(24, 26, 32)
 win.BackgroundTransparency = 0.05
 win.BorderSizePixel = 0
-win.ClipsDescendants = true -- 关键：裁剪子元素，避免“跑出窗口”
+win.ClipsDescendants = true      -- ★ 关键：裁剪子元素
+win.ZIndex = 50
 win.Parent = gui
 
 local corner = Instance.new("UICorner")
@@ -45,7 +45,7 @@ shadow.Image = "rbxassetid://5028857084"
 shadow.ImageTransparency = 0.35
 shadow.ScaleType = Enum.ScaleType.Slice
 shadow.SliceCenter = Rect.new(24, 24, 276, 276)
-shadow.ZIndex = 0
+shadow.ZIndex = 49
 shadow.Parent = win
 
 -- 标题栏
@@ -55,6 +55,7 @@ titleBar.Size = UDim2.new(1, 0, 0, 36)
 titleBar.BackgroundTransparency = 0.8
 titleBar.BackgroundColor3 = Color3.fromRGB(255,255,255)
 titleBar.BorderSizePixel = 0
+titleBar.ZIndex = 60
 titleBar.Parent = win
 
 local title = Instance.new("TextLabel")
@@ -66,6 +67,7 @@ title.BackgroundTransparency = 1
 title.Position = UDim2.fromOffset(12, 0)
 title.Size = UDim2.new(1, -120, 1, 0)
 title.TextXAlignment = Enum.TextXAlignment.Left
+title.ZIndex = 61
 title.Parent = titleBar
 
 local btnClose = Instance.new("TextButton")
@@ -76,6 +78,7 @@ btnClose.TextColor3 = Color3.fromRGB(230,230,230)
 btnClose.BackgroundTransparency = 0.85
 btnClose.Size = UDim2.fromOffset(32, 24)
 btnClose.Position = UDim2.new(1, -36, 0, 6)
+btnClose.ZIndex = 62
 btnClose.Parent = titleBar
 
 local btnMin = Instance.new("TextButton")
@@ -86,44 +89,53 @@ btnMin.TextColor3 = Color3.fromRGB(230,230,230)
 btnMin.BackgroundTransparency = 0.85
 btnMin.Size = UDim2.fromOffset(32, 24)
 btnMin.Position = UDim2.new(1, -72, 0, 6)
+btnMin.ZIndex = 62
 btnMin.Parent = titleBar
 
--- 内容区：改为可滚动容器（解决控件“跑到窗外”的问题）
+-- === 内容区（滚动 + 内层容器）===
 local content = Instance.new("ScrollingFrame")
 content.Name = "Content"
 content.Position = UDim2.fromOffset(12, 44)
 content.Size = UDim2.new(1, -24, 1, -56)
 content.BackgroundTransparency = 1
-content.ScrollBarThickness = 6
 content.ScrollingDirection = Enum.ScrollingDirection.Y
+content.ScrollBarThickness = 6
 content.VerticalScrollBarInset = Enum.ScrollBarInset.Always
+content.ClipsDescendants = true          -- ★ 确保滚动框也裁剪
+content.ZIndex = 55
 content.Parent = win
 
--- 自动 Canvas（新客户端）
-pcall(function()
-    content.AutomaticCanvasSize = Enum.AutomaticSize.Y
-end)
+-- 内层容器：所有行都加到这里，便于精确计算高度
+local container = Instance.new("Frame")
+container.Name = "Container"
+container.Size = UDim2.new(1, -0, 0, 0)
+container.BackgroundTransparency = 1
+container.ClipsDescendants = false
+container.AutomaticSize = Enum.AutomaticSize.Y
+container.ZIndex = 56
+container.Parent = content
 
 local padding = Instance.new("UIPadding")
 padding.PaddingTop = UDim.new(0, 4)
 padding.PaddingBottom = UDim.new(0, 8)
 padding.PaddingLeft = UDim.new(0, 8)
 padding.PaddingRight = UDim.new(0, 8)
-padding.Parent = content
+padding.Parent = container
 
 local list = Instance.new("UIListLayout")
 list.SortOrder = Enum.SortOrder.LayoutOrder
 list.Padding = UDim.new(0, 6)
-list.Parent = content
+list.Parent = container
 
--- 兜底：无 AutomaticCanvasSize 时，跟随内容更新 CanvasSize
+-- 统一根据 container 内容高度更新 CanvasSize（不依赖 AutomaticCanvasSize）
 local function updateCanvas()
-    content.CanvasSize = UDim2.new(0, 0, 0, list.AbsoluteContentSize.Y + 12)
+    local h = list.AbsoluteContentSize.Y + padding.PaddingTop.Offset + padding.PaddingBottom.Offset
+    content.CanvasSize = UDim2.new(0, 0, 0, math.max(h, 0))
 end
 list:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(updateCanvas)
 updateCanvas()
 
--- 拖拽逻辑（鼠标/触屏）
+-- === 拖拽 ===
 do
     local dragging, dragStart, startPos
     local function updateDrag(input)
@@ -151,7 +163,7 @@ do
     end)
 end
 
--- 关闭 / 最小化 / 快捷键切换
+-- 关闭 / 最小化 / 快捷键
 btnClose.MouseButton1Click:Connect(function()
     gui.Enabled = false
 end)
@@ -176,7 +188,7 @@ UserInputService.InputBegan:Connect(function(input, gp)
     end
 end)
 
--- ============ UI 小部件：分区 / 开关 / 按钮 ============
+-- ========== UI 组件 ==========
 local function addSection(titleText)
     local sec = Instance.new("TextLabel")
     sec.Size = UDim2.new(1, 0, 0, 20)
@@ -187,7 +199,8 @@ local function addSection(titleText)
     sec.TextColor3 = Color3.fromRGB(170, 200, 255)
     sec.Text = titleText
     sec.LayoutOrder = 0
-    sec.Parent = content
+    sec.ZIndex = 57
+    sec.Parent = container
 end
 
 local function createToggle(labelText, defaultOn, onChanged)
@@ -196,7 +209,9 @@ local function createToggle(labelText, defaultOn, onChanged)
     row.BackgroundTransparency = 0.8
     row.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
     row.LayoutOrder = 1
-    row.Parent = content
+    row.ZIndex = 57
+    row.ClipsDescendants = true      -- 防止单行子元素也外溢
+    row.Parent = container
 
     local rcorner = Instance.new("UICorner")
     rcorner.CornerRadius = UDim.new(0, 8)
@@ -210,6 +225,7 @@ local function createToggle(labelText, defaultOn, onChanged)
     lab.TextSize = 14
     lab.TextXAlignment = Enum.TextXAlignment.Left
     lab.TextColor3 = Color3.fromRGB(30, 30, 30)
+    lab.ZIndex = 58
     lab.Text = labelText
     lab.Parent = row
 
@@ -221,6 +237,7 @@ local function createToggle(labelText, defaultOn, onChanged)
     btn.TextSize = 14
     btn.Font = Enum.Font.GothamBold
     btn.Text = "开"
+    btn.ZIndex = 59
     btn.Parent = row
 
     local bcorner = Instance.new("UICorner")
@@ -244,14 +261,6 @@ local function createToggle(labelText, defaultOn, onChanged)
         render()
         if onChanged then task.spawn(onChanged, state) end
     end)
-
-    return {
-        Set = function(v)
-            state = v and true or false
-            render()
-            if onChanged then task.spawn(onChanged, state) end
-        end
-    }
 end
 
 local function createButton(labelText, onClick)
@@ -260,7 +269,9 @@ local function createButton(labelText, onClick)
     row.BackgroundTransparency = 0.8
     row.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
     row.LayoutOrder = 1
-    row.Parent = content
+    row.ZIndex = 57
+    row.ClipsDescendants = true
+    row.Parent = container
 
     local rcorner = Instance.new("UICorner")
     rcorner.CornerRadius = UDim.new(0, 8)
@@ -274,6 +285,7 @@ local function createButton(labelText, onClick)
     lab.TextSize = 14
     lab.TextXAlignment = Enum.TextXAlignment.Left
     lab.TextColor3 = Color3.fromRGB(30, 30, 30)
+    lab.ZIndex = 58
     lab.Text = labelText
     lab.Parent = row
 
@@ -285,6 +297,7 @@ local function createButton(labelText, onClick)
     btn.TextSize = 14
     btn.Font = Enum.Font.GothamBold
     btn.Text = "执行"
+    btn.ZIndex = 59
     btn.Parent = row
 
     local bcorner = Instance.new("UICorner")
@@ -296,7 +309,7 @@ local function createButton(labelText, onClick)
     end)
 end
 
--- ============ 示例：把控件挂上去（按你之前版式） ============
+-- ====== 示例内容（你可把回调换成自己的逻辑）======
 addSection("自动")
 createToggle("自动刷", false, function(on) print("自动刷:", on) end)
 createToggle("自动收", false, function(on) print("自动收:", on) end)
@@ -318,4 +331,4 @@ createToggle("边界保护", false, function(on) print("人物-边界保护:", o
 addSection("其它")
 createButton("查看玩家数据", function() print("查看玩家数据：执行") end)
 
-print("[悬浮窗] 已加载：拖拽 / 最小化 / RightShift 切换 / 滚动容器")
+print("[悬浮窗] Loaded: Drag/Minimize/RightShift + Scroll & Clip")
