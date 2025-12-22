@@ -1,49 +1,76 @@
--- StarterGui/FloatingWin.client.lua  （整段复制即可）
--- 仅用于你自己的体验里调试 UI。可拖拽 / 最小化 / RightShift 显隐 / 置顶显示 / 滚动不溢出
+-- StarterGui/FloatingWin_DEBUG.client.lua  （整段可用）
+-- 用途：在自己的体验里验证 UI 是否加载成功；内置自检与醒目横幅
+-- 功能：悬浮窗（拖拽/最小化/RightShift 显隐/置顶/滚动不溢出），以及逐步日志
+-- 说明：仅限Studio/自家体验。不要用于注入/绕过（我不能协助注入相关）
 
+local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
+local StarterGui = game:GetService("StarterGui")
 
+-- ==== 0) 环境自检 ====
+local function log(...) print("[FloatingWin_DEBUG]", ...) end
+local function toast(t, m, d)
+    pcall(function()
+        StarterGui:SetCore("SendNotification", {Title = t or "提示", Text = m or "", Duration = d or 3})
+    end)
+    log(t or "提示", m or "")
+end
+
+-- 必须是客户端 LocalScript
+if not RunService:IsClient() then
+    warn("[FloatingWin_DEBUG] 这是服务端环境，LocalScript 才能创建玩家本地 UI。请将脚本放到 StarterGui 下（LocalScript）。")
+    return
+end
+
+-- LocalPlayer / PlayerGui
 local LP = Players.LocalPlayer
-local PlayerGui = LP:WaitForChild("PlayerGui")
+if not LP then
+    warn("[FloatingWin_DEBUG] 没有 LocalPlayer。请确认脚本为 LocalScript 且位于 StarterGui/StarterPlayerScripts。")
+    return
+end
 
--- 清理旧的同名 GUI
+local PlayerGui = LP:WaitForChild("PlayerGui", 5)
+if not PlayerGui then
+    warn("[FloatingWin_DEBUG] 5 秒内未找到 PlayerGui。请确认放在 StarterGui 下且为 LocalScript。")
+    return
+end
+
+-- ==== 1) 清理旧 GUI + 顶部“UI READY”横幅 ====
 local old = PlayerGui:FindFirstChild("FloatingWin")
 if old then old:Destroy() end
 
--- 顶层 ScreenGui（置顶）
 local gui = Instance.new("ScreenGui")
 gui.Name = "FloatingWin"
 gui.ResetOnSpawn = false
 gui.IgnoreGuiInset = true
 gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-gui.DisplayOrder = 32767 -- 置顶
+gui.DisplayOrder = 32767  -- 顶层
 gui.Parent = PlayerGui
 
--- 顶部“UI READY”横幅（确保你能看到有东西出来）
 do
     local banner = Instance.new("TextLabel")
     banner.Name = "ReadyBanner"
-    banner.Size = UDim2.new(1, 0, 0, 26)
+    banner.Size = UDim2.new(1, 0, 0, 28)
     banner.Position = UDim2.fromOffset(0, 0)
-    banner.BackgroundColor3 = Color3.fromRGB(255, 80, 80)
-    banner.BackgroundTransparency = 0.1
-    banner.Text = "✅ UI READY（按 RightShift 显隐悬浮窗）"
+    banner.BackgroundColor3 = Color3.fromRGB(0, 170, 85)
+    banner.BackgroundTransparency = 0
+    banner.Text = "✅ UI READY - 按 RightShift 显隐悬浮窗"
     banner.TextColor3 = Color3.new(1,1,1)
     banner.TextSize = 16
     banner.Font = Enum.Font.GothamBold
     banner.ZIndex = 1000
     banner.Parent = gui
-    task.delay(2.0, function()
-        if banner then banner:Destroy() end
-    end)
+    task.delay(2.5, function() if banner then banner:Destroy() end end)
 end
 
--- 主窗体
+toast("步骤1/4", "创建 ScreenGui 成功", 2)
+
+-- ==== 2) 悬浮窗骨架 ====
 local win = Instance.new("Frame")
 win.Name = "Window"
 win.Size = UDim2.fromOffset(360, 260)
-win.Position = UDim2.fromOffset(120, 120)
+win.Position = UDim2.fromOffset(80, 100)
 win.BackgroundColor3 = Color3.fromRGB(24, 26, 32)
 win.BackgroundTransparency = 0.05
 win.BorderSizePixel = 0
@@ -51,9 +78,8 @@ win.ClipsDescendants = true
 win.ZIndex = 100
 win.Parent = gui
 
-local corner = Instance.new("UICorner"); corner.CornerRadius = UDim.new(0, 14); corner.Parent = win
+Instance.new("UICorner", win).CornerRadius = UDim.new(0, 14)
 
--- 标题栏
 local titleBar = Instance.new("Frame")
 titleBar.Name = "TitleBar"
 titleBar.Size = UDim2.new(1, 0, 0, 36)
@@ -64,7 +90,7 @@ titleBar.ZIndex = 110
 titleBar.Parent = win
 
 local title = Instance.new("TextLabel")
-title.Text = "吃吃世界 — 悬浮窗"
+title.Text = "吃吃世界 — 悬浮窗（调试版）"
 title.Font = Enum.Font.GothamBold
 title.TextSize = 14
 title.TextColor3 = Color3.fromRGB(240, 240, 240)
@@ -97,7 +123,9 @@ btnMin.Position = UDim2.new(1, -72, 0, 6)
 btnMin.ZIndex = 112
 btnMin.Parent = titleBar
 
--- 内容滚动区 + 内层容器
+toast("步骤2/4", "窗口与标题栏创建成功", 2)
+
+-- ==== 3) 滚动内容区 + 内层容器 ====
 local content = Instance.new("ScrollingFrame")
 content.Name = "Content"
 content.Position = UDim2.fromOffset(12, 44)
@@ -121,7 +149,7 @@ container.Parent = content
 
 local padding = Instance.new("UIPadding")
 padding.PaddingTop = UDim.new(0, 6)
-padding.PaddingBottom = UDim.new(0, 10)
+padding.PaddingBottom = UDim.new(0, 8)
 padding.PaddingLeft = UDim.new(0, 8)
 padding.PaddingRight = UDim.new(0, 8)
 padding.Parent = container
@@ -138,7 +166,9 @@ end
 list:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(updateCanvas)
 updateCanvas()
 
--- 拖拽
+toast("步骤3/4", "滚动容器就绪", 2)
+
+-- ==== 4) 拖拽 / 最小化 / RightShift ====
 do
     local dragging, dragStart, startPos
     local function updateDrag(input)
@@ -156,14 +186,12 @@ do
     end)
     UserInputService.InputChanged:Connect(function(input)
         if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement
-        or input.UserInputType == Enum.UserInputType.Touch) then
-            updateDrag(input)
-        end
+        or input.UserInputType == Enum.UserInputType.Touch) then updateDrag(input) end
     end)
 end
 
--- 关闭 / 最小化 / 快捷键
 btnClose.MouseButton1Click:Connect(function() gui.Enabled = false end)
+
 local collapsed = false
 local originalSize = win.Size
 btnMin.MouseButton1Click:Connect(function()
@@ -171,12 +199,15 @@ btnMin.MouseButton1Click:Connect(function()
     if collapsed then content.Visible = false; win.Size = UDim2.fromOffset(originalSize.X.Offset, 40)
     else content.Visible = true; win.Size = originalSize end
 end)
+
 UserInputService.InputBegan:Connect(function(input, gp)
     if gp then return end
     if input.KeyCode == Enum.KeyCode.RightShift then gui.Enabled = not gui.Enabled end
 end)
 
--- 工具函数：分区 & 行
+toast("步骤4/4", "交互绑定成功（可拖拽/最小化/RightShift）", 3)
+
+-- ==== UI 小部件（点击“名字”也能切换）====
 local function addSection(titleText)
     local sec = Instance.new("TextLabel")
     sec.Size = UDim2.new(1, 0, 0, 20)
@@ -198,7 +229,6 @@ local function createToggle(labelText, defaultOn, onChanged)
     row.ZIndex = 122
     row.ClipsDescendants = true
     row.Parent = container
-
     Instance.new("UICorner", row).CornerRadius = UDim.new(0, 8)
 
     local labBtn = Instance.new("TextButton")
@@ -242,9 +272,9 @@ local function createToggle(labelText, defaultOn, onChanged)
     local function toggle()
         state = not state; render()
         if onChanged then task.spawn(onChanged, state) end
+        toast(labelText, state and "开启" or "关闭", 1.2)
     end
     render()
-
     btn.MouseButton1Click:Connect(toggle)
     labBtn.MouseButton1Click:Connect(toggle)
     rowHit.MouseButton1Click:Connect(toggle)
@@ -258,7 +288,6 @@ local function createButton(labelText, onClick)
     row.ZIndex = 122
     row.ClipsDescendants = true
     row.Parent = container
-
     Instance.new("UICorner", row).CornerRadius = UDim.new(0, 8)
 
     local labBtn = Instance.new("TextButton")
@@ -286,29 +315,40 @@ local function createButton(labelText, onClick)
     btn.Parent = row
     Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
 
-    local function fire() if onClick then task.spawn(onClick) end end
+    local function fire() if onClick then task.spawn(onClick) end; toast(labelText, "执行", 1.0) end
     btn.MouseButton1Click:Connect(fire)
     labBtn.MouseButton1Click:Connect(fire)
 end
 
--- === 示例内容（你可以把回调换成自己的合法逻辑）===
-addSection("自动")
-createToggle("自动刷", false, function(on) print("[自动刷]", on) end)
-createToggle("自动收", false, function(on) print("[自动收]", on) end)
-createToggle("自动领", false, function(on) print("[自动领]", on) end)
-createToggle("移动模式", false, function(on) print("[移动模式]", on) end)
-createToggle("显示地图", false, function(on) print("[显示地图]", on) end)
-createToggle("自动吃", false, function(on) print("[自动吃]", on) end)
+-- ==== 示例项（仅为可见反馈；把 print 换成你的逻辑即可）====
+local function addAuto()
+    addSection("自动")
+    createToggle("自动刷", false, function(on) log("自动刷 =>", on) end)
+    createToggle("自动收", false, function(on) log("自动收 =>", on) end)
+    createToggle("自动领", false, function(on) log("自动领 =>", on) end)
+    createToggle("移动模式", false, function(on) log("移动模式 =>", on) end)
+    createToggle("显示地图", false, function(on) log("显示地图 =>", on) end)
+    createToggle("自动吃", false, function(on) log("自动吃 =>", on) end)
+end
+local function addUpgrade()
+    addSection("升级")
+    createToggle("大小", false, function(on) log("升级-大小 =>", on) end)
+    createToggle("移速", false, function(on) log("升级-移速 =>", on) end)
+    createToggle("乘数", false, function(on) log("升级-乘数 =>", on) end)
+    createToggle("吃速", false, function(on) log("升级-吃速 =>", on) end)
+end
+local function addFigure()
+    addSection("人物")
+    createToggle("取消锚固", false, function(on) log("取消锚固 =>", on) end)
+    createToggle("边界保护", false, function(on) log("边界保护 =>", on) end)
+end
+local function addMisc()
+    addSection("其它")
+    createButton("查看玩家数据", function() log("查看玩家数据：执行") end)
+end
+addAuto(); addUpgrade(); addFigure(); addMisc()
 
-addSection("升级")
-createToggle("大小", false, function(on) print("[升级-大小]", on) end)
-createToggle("移速", false, function(on) print("[升级-移速]", on) end)
-createToggle("乘数", false, function(on) print("[升级-乘数]", on) end)
-createToggle("吃速", false, function(on) print("[升级-吃速]", on) end)
-
-addSection("人物")
-createToggle("取消锚固", false, function(on) print("[人物-取消锚固]", on) end)
-createToggle("边界保护", false, function(on) print("[人物-边界保护]", on) end)
-
-addSection("其它")
-createButton("查看玩家数据", function() print("[查看玩家数据] 执行") end)
+-- ==== 完成提示 ====
+toast("悬浮窗", "加载完成（见上方横幅 & 窗口）", 3)
+log("如果仍看不到：按 F9 打开控制台，查看是否输出了“步骤1/4 ~ 4/4”。")
+log("必须是 LocalScript 且放在 StarterGui 下。注入/执行器问题不在本脚本支持范围。")
