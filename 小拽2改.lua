@@ -1,5 +1,6 @@
--- FloatingWin.client.lua  （直接整段替换）
--- 悬浮窗：拖拽 / 最小化 / RightShift 显隐 / 严格裁剪 + 可滚动内容（不再溢出）
+-- FloatingWin.client.lua  （整段替换）
+-- 悬浮窗：拖拽 / 最小化 / RightShift 显隐 / 置顶显示 / 严格裁剪 / 可滚动内容
+-- 行为改进：点击“功能名”也能切换（整行可点）
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
@@ -10,12 +11,13 @@ local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
 local old = playerGui:FindFirstChild("FloatingWin")
 if old then old:Destroy() end
 
--- ScreenGui
+-- 顶层 ScreenGui
 local gui = Instance.new("ScreenGui")
 gui.Name = "FloatingWin"
 gui.ResetOnSpawn = false
 gui.IgnoreGuiInset = true
 gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+gui.DisplayOrder = 9999            -- ★ 始终在最上层
 gui.Parent = playerGui
 
 -- 主窗体
@@ -26,8 +28,8 @@ win.Position = UDim2.fromOffset(120, 120)
 win.BackgroundColor3 = Color3.fromRGB(24, 26, 32)
 win.BackgroundTransparency = 0.05
 win.BorderSizePixel = 0
-win.ClipsDescendants = true      -- ★ 关键：裁剪子元素
-win.ZIndex = 50
+win.ClipsDescendants = true        -- ★ 裁剪一切子元素
+win.ZIndex = 100
 win.Parent = gui
 
 local corner = Instance.new("UICorner")
@@ -45,7 +47,7 @@ shadow.Image = "rbxassetid://5028857084"
 shadow.ImageTransparency = 0.35
 shadow.ScaleType = Enum.ScaleType.Slice
 shadow.SliceCenter = Rect.new(24, 24, 276, 276)
-shadow.ZIndex = 49
+shadow.ZIndex = 99
 shadow.Parent = win
 
 -- 标题栏
@@ -55,7 +57,7 @@ titleBar.Size = UDim2.new(1, 0, 0, 36)
 titleBar.BackgroundTransparency = 0.8
 titleBar.BackgroundColor3 = Color3.fromRGB(255,255,255)
 titleBar.BorderSizePixel = 0
-titleBar.ZIndex = 60
+titleBar.ZIndex = 110
 titleBar.Parent = win
 
 local title = Instance.new("TextLabel")
@@ -67,7 +69,7 @@ title.BackgroundTransparency = 1
 title.Position = UDim2.fromOffset(12, 0)
 title.Size = UDim2.new(1, -120, 1, 0)
 title.TextXAlignment = Enum.TextXAlignment.Left
-title.ZIndex = 61
+title.ZIndex = 111
 title.Parent = titleBar
 
 local btnClose = Instance.new("TextButton")
@@ -78,7 +80,7 @@ btnClose.TextColor3 = Color3.fromRGB(230,230,230)
 btnClose.BackgroundTransparency = 0.85
 btnClose.Size = UDim2.fromOffset(32, 24)
 btnClose.Position = UDim2.new(1, -36, 0, 6)
-btnClose.ZIndex = 62
+btnClose.ZIndex = 112
 btnClose.Parent = titleBar
 
 local btnMin = Instance.new("TextButton")
@@ -89,10 +91,10 @@ btnMin.TextColor3 = Color3.fromRGB(230,230,230)
 btnMin.BackgroundTransparency = 0.85
 btnMin.Size = UDim2.fromOffset(32, 24)
 btnMin.Position = UDim2.new(1, -72, 0, 6)
-btnMin.ZIndex = 62
+btnMin.ZIndex = 112
 btnMin.Parent = titleBar
 
--- === 内容区（滚动 + 内层容器）===
+-- 内容滚动区
 local content = Instance.new("ScrollingFrame")
 content.Name = "Content"
 content.Position = UDim2.fromOffset(12, 44)
@@ -101,18 +103,19 @@ content.BackgroundTransparency = 1
 content.ScrollingDirection = Enum.ScrollingDirection.Y
 content.ScrollBarThickness = 6
 content.VerticalScrollBarInset = Enum.ScrollBarInset.Always
-content.ClipsDescendants = true          -- ★ 确保滚动框也裁剪
-content.ZIndex = 55
+content.ClipsDescendants = true        -- ★ 滚动框也裁剪
+content.ScrollingEnabled = true
+content.Active = true
+content.ZIndex = 120
 content.Parent = win
 
--- 内层容器：所有行都加到这里，便于精确计算高度
+-- 内层容器（真正放行的地方）
 local container = Instance.new("Frame")
 container.Name = "Container"
-container.Size = UDim2.new(1, -0, 0, 0)
+container.Size = UDim2.new(1, 0, 0, 0)
 container.BackgroundTransparency = 1
-container.ClipsDescendants = false
 container.AutomaticSize = Enum.AutomaticSize.Y
-container.ZIndex = 56
+container.ZIndex = 121
 container.Parent = content
 
 local padding = Instance.new("UIPadding")
@@ -127,7 +130,7 @@ list.SortOrder = Enum.SortOrder.LayoutOrder
 list.Padding = UDim.new(0, 6)
 list.Parent = container
 
--- 统一根据 container 内容高度更新 CanvasSize（不依赖 AutomaticCanvasSize）
+-- 统一根据内容高度更新 CanvasSize（不依赖 AutomaticCanvasSize）
 local function updateCanvas()
     local h = list.AbsoluteContentSize.Y + padding.PaddingTop.Offset + padding.PaddingBottom.Offset
     content.CanvasSize = UDim2.new(0, 0, 0, math.max(h, 0))
@@ -135,7 +138,7 @@ end
 list:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(updateCanvas)
 updateCanvas()
 
--- === 拖拽 ===
+-- 拖拽
 do
     local dragging, dragStart, startPos
     local function updateDrag(input)
@@ -144,7 +147,7 @@ do
     end
     titleBar.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1
-            or input.UserInputType == Enum.UserInputType.Touch then
+        or input.UserInputType == Enum.UserInputType.Touch then
             dragging = true
             dragStart = input.Position
             startPos = win.Position
@@ -157,7 +160,7 @@ do
     end)
     UserInputService.InputChanged:Connect(function(input)
         if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement
-            or input.UserInputType == Enum.UserInputType.Touch) then
+        or input.UserInputType == Enum.UserInputType.Touch) then
             updateDrag(input)
         end
     end)
@@ -188,7 +191,7 @@ UserInputService.InputBegan:Connect(function(input, gp)
     end
 end)
 
--- ========== UI 组件 ==========
+-- ===== 可复用的小部件 =====
 local function addSection(titleText)
     local sec = Instance.new("TextLabel")
     sec.Size = UDim2.new(1, 0, 0, 20)
@@ -199,36 +202,38 @@ local function addSection(titleText)
     sec.TextColor3 = Color3.fromRGB(170, 200, 255)
     sec.Text = titleText
     sec.LayoutOrder = 0
-    sec.ZIndex = 57
+    sec.ZIndex = 122
     sec.Parent = container
 end
 
+-- 点击“名字”即可切换；整行也能点
 local function createToggle(labelText, defaultOn, onChanged)
     local row = Instance.new("Frame")
-    row.Size = UDim2.new(1, 0, 0, 28)
+    row.Size = UDim2.new(1, 0, 0, 32)
     row.BackgroundTransparency = 0.8
     row.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
     row.LayoutOrder = 1
-    row.ZIndex = 57
-    row.ClipsDescendants = true      -- 防止单行子元素也外溢
+    row.ZIndex = 122
+    row.ClipsDescendants = true
     row.Parent = container
 
-    local rcorner = Instance.new("UICorner")
-    rcorner.CornerRadius = UDim.new(0, 8)
-    rcorner.Parent = row
+    local rcorner = Instance.new("UICorner"); rcorner.CornerRadius = UDim.new(0, 8); rcorner.Parent = row
 
-    local lab = Instance.new("TextLabel")
-    lab.BackgroundTransparency = 1
-    lab.Position = UDim2.fromOffset(10, 0)
-    lab.Size = UDim2.new(1, -90, 1, 0)
-    lab.Font = Enum.Font.Gotham
-    lab.TextSize = 14
-    lab.TextXAlignment = Enum.TextXAlignment.Left
-    lab.TextColor3 = Color3.fromRGB(30, 30, 30)
-    lab.ZIndex = 58
-    lab.Text = labelText
-    lab.Parent = row
+    -- 名字按钮（可点）
+    local labBtn = Instance.new("TextButton")
+    labBtn.BackgroundTransparency = 1
+    labBtn.AutoButtonColor = false
+    labBtn.Position = UDim2.fromOffset(10, 0)
+    labBtn.Size = UDim2.new(1, -100, 1, 0)
+    labBtn.Font = Enum.Font.Gotham
+    labBtn.TextSize = 14
+    labBtn.TextXAlignment = Enum.TextXAlignment.Left
+    labBtn.TextColor3 = Color3.fromRGB(30, 30, 30)
+    labBtn.Text = labelText
+    labBtn.ZIndex = 123
+    labBtn.Parent = row
 
+    -- 右侧按钮
     local btn = Instance.new("TextButton")
     btn.Size = UDim2.fromOffset(64, 24)
     btn.Position = UDim2.new(1, -74, 0.5, -12)
@@ -237,12 +242,19 @@ local function createToggle(labelText, defaultOn, onChanged)
     btn.TextSize = 14
     btn.Font = Enum.Font.GothamBold
     btn.Text = "开"
-    btn.ZIndex = 59
+    btn.ZIndex = 123
     btn.Parent = row
 
-    local bcorner = Instance.new("UICorner")
-    bcorner.CornerRadius = UDim.new(0, 6)
-    bcorner.Parent = btn
+    local bcorner = Instance.new("UICorner"); bcorner.CornerRadius = UDim.new(0, 6); bcorner.Parent = btn
+
+    -- 整行透明触发层（容错：点行背景也能切换）
+    local rowHit = Instance.new("TextButton")
+    rowHit.BackgroundTransparency = 1
+    rowHit.AutoButtonColor = false
+    rowHit.Size = UDim2.fromScale(1, 1)
+    rowHit.Text = ""
+    rowHit.ZIndex = 122
+    rowHit.Parent = row
 
     local state = defaultOn and true or false
     local function render()
@@ -254,40 +266,42 @@ local function createToggle(labelText, defaultOn, onChanged)
             btn.BackgroundColor3 = Color3.fromRGB(120, 120, 120)
         end
     end
-    render()
-
-    btn.MouseButton1Click:Connect(function()
+    local function toggle()
         state = not state
         render()
         if onChanged then task.spawn(onChanged, state) end
-    end)
+    end
+    render()
+
+    btn.MouseButton1Click:Connect(toggle)
+    labBtn.MouseButton1Click:Connect(toggle)   -- ★ 点名字即可切换
+    rowHit.MouseButton1Click:Connect(toggle)   -- ★ 点整行也可切换
 end
 
 local function createButton(labelText, onClick)
     local row = Instance.new("Frame")
-    row.Size = UDim2.new(1, 0, 0, 28)
+    row.Size = UDim2.new(1, 0, 0, 32)
     row.BackgroundTransparency = 0.8
     row.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
     row.LayoutOrder = 1
-    row.ZIndex = 57
+    row.ZIndex = 122
     row.ClipsDescendants = true
     row.Parent = container
 
-    local rcorner = Instance.new("UICorner")
-    rcorner.CornerRadius = UDim.new(0, 8)
-    rcorner.Parent = row
+    local rcorner = Instance.new("UICorner"); rcorner.CornerRadius = UDim.new(0, 8); rcorner.Parent = row
 
-    local lab = Instance.new("TextLabel")
-    lab.BackgroundTransparency = 1
-    lab.Position = UDim2.fromOffset(10, 0)
-    lab.Size = UDim2.new(1, -100, 1, 0)
-    lab.Font = Enum.Font.Gotham
-    lab.TextSize = 14
-    lab.TextXAlignment = Enum.TextXAlignment.Left
-    lab.TextColor3 = Color3.fromRGB(30, 30, 30)
-    lab.ZIndex = 58
-    lab.Text = labelText
-    lab.Parent = row
+    local labBtn = Instance.new("TextButton")
+    labBtn.BackgroundTransparency = 1
+    labBtn.AutoButtonColor = false
+    labBtn.Position = UDim2.fromOffset(10, 0)
+    labBtn.Size = UDim2.new(1, -100, 1, 0)
+    labBtn.Font = Enum.Font.Gotham
+    labBtn.TextSize = 14
+    labBtn.TextXAlignment = Enum.TextXAlignment.Left
+    labBtn.TextColor3 = Color3.fromRGB(30, 30, 30)
+    labBtn.Text = labelText
+    labBtn.ZIndex = 123
+    labBtn.Parent = row
 
     local btn = Instance.new("TextButton")
     btn.Size = UDim2.fromOffset(80, 24)
@@ -297,19 +311,19 @@ local function createButton(labelText, onClick)
     btn.TextSize = 14
     btn.Font = Enum.Font.GothamBold
     btn.Text = "执行"
-    btn.ZIndex = 59
+    btn.ZIndex = 123
     btn.Parent = row
 
-    local bcorner = Instance.new("UICorner")
-    bcorner.CornerRadius = UDim.new(0, 6)
-    bcorner.Parent = btn
+    local bcorner = Instance.new("UICorner"); bcorner.CornerRadius = UDim.new(0, 6); bcorner.Parent = btn
 
-    btn.MouseButton1Click:Connect(function()
+    local function fire()
         if onClick then task.spawn(onClick) end
-    end)
+    end
+    btn.MouseButton1Click:Connect(fire)
+    labBtn.MouseButton1Click:Connect(fire)     -- 点名字也执行
 end
 
--- ====== 示例内容（你可把回调换成自己的逻辑）======
+-- ====== 示例内容（把回调换成你的逻辑即可）======
 addSection("自动")
 createToggle("自动刷", false, function(on) print("自动刷:", on) end)
 createToggle("自动收", false, function(on) print("自动收:", on) end)
@@ -331,4 +345,4 @@ createToggle("边界保护", false, function(on) print("人物-边界保护:", o
 addSection("其它")
 createButton("查看玩家数据", function() print("查看玩家数据：执行") end)
 
-print("[悬浮窗] Loaded: Drag/Minimize/RightShift + Scroll & Clip")
+print("[悬浮窗] Loaded (Top-most, Clip, Scroll). 点击名字=切换 / 整行可点。")
