@@ -1,13 +1,17 @@
--- 悬浮窗：拖拽 / 最小化 / RightShift 显隐 / 置顶显示 / 严格裁剪 / 可滚动内容
--- 不包含具体功能；通过 BindableEvent 抛出事件，供别处接入你的逻辑。
+-- FloatingWin.client.lua  （整段可用）
+-- 悬浮窗：拖拽 / 最小化 / RightShift 显隐 / 置顶显示 / 滚动裁剪 / 点名字可切换
+-- 内置“默认行为”保证有可见效果；如存在 ReplicatedStorage.GameActions 模块，则优先调用你自己的实现。
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
+local StarterGui = game:GetService("StarterGui")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local playerGui = Players.LocalPlayer:WaitForChild("PlayerGui")
+local LP = Players.LocalPlayer
+local PlayerGui = LP:WaitForChild("PlayerGui")
 
--- 防重复
-local old = playerGui:FindFirstChild("FloatingWin")
+-- 先清掉旧的
+local old = PlayerGui:FindFirstChild("FloatingWin")
 if old then old:Destroy() end
 
 -- 顶层 ScreenGui
@@ -17,39 +21,27 @@ gui.ResetOnSpawn = false
 gui.IgnoreGuiInset = true
 gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 gui.DisplayOrder = 9999
-gui.Parent = playerGui
+gui.Parent = PlayerGui
 
--- 事件中心（UI -> 逻辑）
-local Signals = Instance.new("Folder")
-Signals.Name = "Signals"
-Signals.Parent = gui
-
-local function newSignal(name)
-    local ev = Instance.new("BindableEvent")
-    ev.Name = name
-    ev.Parent = Signals
-    return ev
+-- 尝试加载你自己的动作模块（可选）
+local ActionsModule = nil
+do
+    local ok, res = pcall(function()
+        local mod = ReplicatedStorage:FindFirstChild("GameActions")
+        if mod and mod:IsA("ModuleScript") then
+            return require(mod)
+        end
+    end)
+    if ok then ActionsModule = res end
 end
 
--- 所有 UI 信号（你在另一个脚本里监听）
-local EV = {
-    AutoFarm        = newSignal("AutoFarm"),
-    AutoCollect     = newSignal("AutoCollect"),
-    AutoClaim       = newSignal("AutoClaim"),
-    MoveMode        = newSignal("MoveMode"),
-    ShowMap         = newSignal("ShowMap"),
-    AutoEat         = newSignal("AutoEat"),
-
-    UpgSize         = newSignal("UpgSize"),
-    UpgSpeed        = newSignal("UpgSpeed"),
-    UpgMulti        = newSignal("UpgMulti"),
-    UpgEat          = newSignal("UpgEat"),
-
-    KeepUnanchor    = newSignal("KeepUnanchor"),
-    BoundProtect    = newSignal("BoundProtect"),
-
-    ViewPlayerData  = newSignal("ViewPlayerData"),
-}
+-- 简单通知
+local function toast(title, text)
+    pcall(function()
+        StarterGui:SetCore("SendNotification", {Title = title or "提示", Text = text or "", Duration = 2})
+    end)
+    print("[FloatingWin]", title or "提示", text or "")
+end
 
 -- 主窗体
 local win = Instance.new("Frame")
@@ -182,17 +174,13 @@ do
             dragStart = input.Position
             startPos = win.Position
             input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then
-                    dragging = false
-                end
+                if input.UserInputState == Enum.UserInputState.End then dragging = false end
             end)
         end
     end)
     UserInputService.InputChanged:Connect(function(input)
         if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement
-        or input.UserInputType == Enum.UserInputType.Touch) then
-            updateDrag(input)
-        end
+        or input.UserInputType == Enum.UserInputType.Touch) then updateDrag(input) end
     end)
 end
 
@@ -203,23 +191,43 @@ local collapsed = false
 local originalSize = win.Size
 btnMin.MouseButton1Click:Connect(function()
     collapsed = not collapsed
-    if collapsed then
-        content.Visible = false
-        win.Size = UDim2.fromOffset(originalSize.X.Offset, 40)
-    else
-        content.Visible = true
-        win.Size = originalSize
-    end
+    if collapsed then content.Visible = false; win.Size = UDim2.fromOffset(originalSize.X.Offset, 40)
+    else content.Visible = true; win.Size = originalSize end
 end)
 
 UserInputService.InputBegan:Connect(function(input, gp)
     if gp then return end
-    if input.KeyCode == Enum.KeyCode.RightShift then
-        gui.Enabled = not gui.Enabled
-    end
+    if input.KeyCode == Enum.KeyCode.RightShift then gui.Enabled = not gui.Enabled end
 end)
 
--- ===== 可复用小部件 =====
+-- ===== 默认行为（看得见的反馈），以及对 GameActions 的自动适配 =====
+local running = {}   -- 保存每个开关的运行状态与线程
+
+-- 标题栏颜色反馈
+local function setTitleActive(active)
+    title.TextColor3 = active and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(200, 200, 200)
+    titleBar.BackgroundTransparency = active and 0.6 or 0.8
+end
+
+-- 为每个功能准备一个“适配调用”
+local function call(name, ...)
+    -- 优先调用你自己的实现
+    if ActionsModule and type(ActionsModule[name]) == "function" then
+        local ok, err = pcall(ActionsModule[name], ...)
+        if not ok then warn("[GameActions."..name.."] error:", err) end
+        return
+    end
+    -- 否则给一个默认可见效果（不越权，不依赖服务端）
+    local args = {...}
+    local on = args[1]
+    if on ~= nil then
+        toast(name, on and "已开启" or "已关闭")
+    else
+        toast(name, "已触发")
+    end
+end
+
+-- 可复用的小部件
 local function addSection(titleText)
     local sec = Instance.new("TextLabel")
     sec.Size = UDim2.new(1, 0, 0, 20)
@@ -234,7 +242,7 @@ local function addSection(titleText)
     sec.Parent = container
 end
 
-local function createToggle(name, labelText, defaultOn)
+local function createToggle(key, labelText, defaultOn)
     local row = Instance.new("Frame")
     row.Size = UDim2.new(1, 0, 0, 32)
     row.BackgroundTransparency = 0.8
@@ -282,24 +290,46 @@ local function createToggle(name, labelText, defaultOn)
 
     local state = defaultOn and true or false
     local function render()
-        if state then
-            btn.Text = "开";  btn.BackgroundColor3 = Color3.fromRGB(40, 120, 255)
-        else
-            btn.Text = "关";  btn.BackgroundColor3 = Color3.fromRGB(120, 120, 120)
-        end
+        if state then btn.Text = "开"; btn.BackgroundColor3 = Color3.fromRGB(40, 120, 255)
+        else btn.Text = "关"; btn.BackgroundColor3 = Color3.fromRGB(120, 120, 120) end
     end
     local function toggle()
         state = not state; render()
-        if EV[name] then EV[name]:Fire(state) end
+
+        -- 停掉旧线程
+        if running[key] and running[key].stop then running[key].stop() end
+        -- 可见反馈（标题栏闪烁表示有开关打开）
+        local anyOn = false
+        for _, v in pairs(running) do if v.on then anyOn = true break end end
+        setTitleActive(anyOn or state)
+
+        -- 调用你的实现或默认行为
+        call(key, state)
+
+        -- 我们给一些“默认长任务”的示例（不做越权操作，只做客户端可见效果）
+        if state then
+            local alive = true
+            running[key] = {on = true, stop = function() alive = false; running[key].on = false end}
+            task.spawn(function()
+                -- 不同 key 给不同的可见动画/提示，保证“有反应”
+                while alive do
+                    task.wait(0.5)
+                    -- 轻微动画：改变窗体透明度/标题色，表示正在“运行”
+                    titleBar.BackgroundTransparency = 0.6 + 0.2*math.abs(math.sin(tick()*2))
+                end
+                titleBar.BackgroundTransparency = 0.8
+            end)
+        else
+            running[key] = {on = false, stop = function() end}
+        end
     end
     render()
-
     btn.MouseButton1Click:Connect(toggle)
     labBtn.MouseButton1Click:Connect(toggle)
     rowHit.MouseButton1Click:Connect(toggle)
 end
 
-local function createButton(name, labelText)
+local function createButton(key, labelText)
     local row = Instance.new("Frame")
     row.Size = UDim2.new(1, 0, 0, 32)
     row.BackgroundTransparency = 0.8
@@ -337,12 +367,16 @@ local function createButton(name, labelText)
 
     local bcorner = Instance.new("UICorner"); bcorner.CornerRadius = UDim.new(0, 6); bcorner.Parent = btn
 
-    local function fire() if EV[name] then EV[name]:Fire() end end
+    local function fire()
+        call(key) -- 无布尔参数，表示一次性动作
+        -- 给个可见动效
+        toast(labelText, "已执行")
+    end
     btn.MouseButton1Click:Connect(fire)
     labBtn.MouseButton1Click:Connect(fire)
 end
 
--- ====== UI 内容（信号名要和 EV 的键一致）======
+-- ===== UI 内容 =====
 local function addAuto()
     addSection("自动")
     createToggle("AutoFarm",    "自动刷",   false)
@@ -374,4 +408,5 @@ end
 
 addAuto(); addUpgrade(); addCharacter(); addMisc()
 
-print("[FloatingWin] UI ready. 所有交互通过 gui.Signals/* 抛出。")
+toast("悬浮窗", "已加载，可拖拽/最小化/RightShift切换")
+print("[FloatingWin] Ready. 若放置了 ReplicatedStorage.GameActions 模块，将优先调用你的实现。")
