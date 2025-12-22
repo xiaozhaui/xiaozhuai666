@@ -1,6 +1,5 @@
--- FloatingWin.client.lua  （整段替换）
 -- 悬浮窗：拖拽 / 最小化 / RightShift 显隐 / 置顶显示 / 严格裁剪 / 可滚动内容
--- 行为改进：点击“功能名”也能切换（整行可点）
+-- 不包含具体功能；通过 BindableEvent 抛出事件，供别处接入你的逻辑。
 
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
@@ -17,8 +16,40 @@ gui.Name = "FloatingWin"
 gui.ResetOnSpawn = false
 gui.IgnoreGuiInset = true
 gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-gui.DisplayOrder = 9999            -- ★ 始终在最上层
+gui.DisplayOrder = 9999
 gui.Parent = playerGui
+
+-- 事件中心（UI -> 逻辑）
+local Signals = Instance.new("Folder")
+Signals.Name = "Signals"
+Signals.Parent = gui
+
+local function newSignal(name)
+    local ev = Instance.new("BindableEvent")
+    ev.Name = name
+    ev.Parent = Signals
+    return ev
+end
+
+-- 所有 UI 信号（你在另一个脚本里监听）
+local EV = {
+    AutoFarm        = newSignal("AutoFarm"),
+    AutoCollect     = newSignal("AutoCollect"),
+    AutoClaim       = newSignal("AutoClaim"),
+    MoveMode        = newSignal("MoveMode"),
+    ShowMap         = newSignal("ShowMap"),
+    AutoEat         = newSignal("AutoEat"),
+
+    UpgSize         = newSignal("UpgSize"),
+    UpgSpeed        = newSignal("UpgSpeed"),
+    UpgMulti        = newSignal("UpgMulti"),
+    UpgEat          = newSignal("UpgEat"),
+
+    KeepUnanchor    = newSignal("KeepUnanchor"),
+    BoundProtect    = newSignal("BoundProtect"),
+
+    ViewPlayerData  = newSignal("ViewPlayerData"),
+}
 
 -- 主窗体
 local win = Instance.new("Frame")
@@ -28,7 +59,7 @@ win.Position = UDim2.fromOffset(120, 120)
 win.BackgroundColor3 = Color3.fromRGB(24, 26, 32)
 win.BackgroundTransparency = 0.05
 win.BorderSizePixel = 0
-win.ClipsDescendants = true        -- ★ 裁剪一切子元素
+win.ClipsDescendants = true
 win.ZIndex = 100
 win.Parent = gui
 
@@ -103,13 +134,13 @@ content.BackgroundTransparency = 1
 content.ScrollingDirection = Enum.ScrollingDirection.Y
 content.ScrollBarThickness = 6
 content.VerticalScrollBarInset = Enum.ScrollBarInset.Always
-content.ClipsDescendants = true        -- ★ 滚动框也裁剪
+content.ClipsDescendants = true
 content.ScrollingEnabled = true
 content.Active = true
 content.ZIndex = 120
 content.Parent = win
 
--- 内层容器（真正放行的地方）
+-- 内层容器
 local container = Instance.new("Frame")
 container.Name = "Container"
 container.Size = UDim2.new(1, 0, 0, 0)
@@ -130,7 +161,6 @@ list.SortOrder = Enum.SortOrder.LayoutOrder
 list.Padding = UDim.new(0, 6)
 list.Parent = container
 
--- 统一根据内容高度更新 CanvasSize（不依赖 AutomaticCanvasSize）
 local function updateCanvas()
     local h = list.AbsoluteContentSize.Y + padding.PaddingTop.Offset + padding.PaddingBottom.Offset
     content.CanvasSize = UDim2.new(0, 0, 0, math.max(h, 0))
@@ -167,9 +197,7 @@ do
 end
 
 -- 关闭 / 最小化 / 快捷键
-btnClose.MouseButton1Click:Connect(function()
-    gui.Enabled = false
-end)
+btnClose.MouseButton1Click:Connect(function() gui.Enabled = false end)
 
 local collapsed = false
 local originalSize = win.Size
@@ -191,7 +219,7 @@ UserInputService.InputBegan:Connect(function(input, gp)
     end
 end)
 
--- ===== 可复用的小部件 =====
+-- ===== 可复用小部件 =====
 local function addSection(titleText)
     local sec = Instance.new("TextLabel")
     sec.Size = UDim2.new(1, 0, 0, 20)
@@ -206,8 +234,7 @@ local function addSection(titleText)
     sec.Parent = container
 end
 
--- 点击“名字”即可切换；整行也能点
-local function createToggle(labelText, defaultOn, onChanged)
+local function createToggle(name, labelText, defaultOn)
     local row = Instance.new("Frame")
     row.Size = UDim2.new(1, 0, 0, 32)
     row.BackgroundTransparency = 0.8
@@ -219,7 +246,6 @@ local function createToggle(labelText, defaultOn, onChanged)
 
     local rcorner = Instance.new("UICorner"); rcorner.CornerRadius = UDim.new(0, 8); rcorner.Parent = row
 
-    -- 名字按钮（可点）
     local labBtn = Instance.new("TextButton")
     labBtn.BackgroundTransparency = 1
     labBtn.AutoButtonColor = false
@@ -233,7 +259,6 @@ local function createToggle(labelText, defaultOn, onChanged)
     labBtn.ZIndex = 123
     labBtn.Parent = row
 
-    -- 右侧按钮
     local btn = Instance.new("TextButton")
     btn.Size = UDim2.fromOffset(64, 24)
     btn.Position = UDim2.new(1, -74, 0.5, -12)
@@ -247,7 +272,6 @@ local function createToggle(labelText, defaultOn, onChanged)
 
     local bcorner = Instance.new("UICorner"); bcorner.CornerRadius = UDim.new(0, 6); bcorner.Parent = btn
 
-    -- 整行透明触发层（容错：点行背景也能切换）
     local rowHit = Instance.new("TextButton")
     rowHit.BackgroundTransparency = 1
     rowHit.AutoButtonColor = false
@@ -259,26 +283,23 @@ local function createToggle(labelText, defaultOn, onChanged)
     local state = defaultOn and true or false
     local function render()
         if state then
-            btn.Text = "开"
-            btn.BackgroundColor3 = Color3.fromRGB(40, 120, 255)
+            btn.Text = "开";  btn.BackgroundColor3 = Color3.fromRGB(40, 120, 255)
         else
-            btn.Text = "关"
-            btn.BackgroundColor3 = Color3.fromRGB(120, 120, 120)
+            btn.Text = "关";  btn.BackgroundColor3 = Color3.fromRGB(120, 120, 120)
         end
     end
     local function toggle()
-        state = not state
-        render()
-        if onChanged then task.spawn(onChanged, state) end
+        state = not state; render()
+        if EV[name] then EV[name]:Fire(state) end
     end
     render()
 
     btn.MouseButton1Click:Connect(toggle)
-    labBtn.MouseButton1Click:Connect(toggle)   -- ★ 点名字即可切换
-    rowHit.MouseButton1Click:Connect(toggle)   -- ★ 点整行也可切换
+    labBtn.MouseButton1Click:Connect(toggle)
+    rowHit.MouseButton1Click:Connect(toggle)
 end
 
-local function createButton(labelText, onClick)
+local function createButton(name, labelText)
     local row = Instance.new("Frame")
     row.Size = UDim2.new(1, 0, 0, 32)
     row.BackgroundTransparency = 0.8
@@ -316,33 +337,41 @@ local function createButton(labelText, onClick)
 
     local bcorner = Instance.new("UICorner"); bcorner.CornerRadius = UDim.new(0, 6); bcorner.Parent = btn
 
-    local function fire()
-        if onClick then task.spawn(onClick) end
-    end
+    local function fire() if EV[name] then EV[name]:Fire() end end
     btn.MouseButton1Click:Connect(fire)
-    labBtn.MouseButton1Click:Connect(fire)     -- 点名字也执行
+    labBtn.MouseButton1Click:Connect(fire)
 end
 
--- ====== 示例内容（把回调换成你的逻辑即可）======
-addSection("自动")
-createToggle("自动刷", false, function(on) print("自动刷:", on) end)
-createToggle("自动收", false, function(on) print("自动收:", on) end)
-createToggle("自动领", false, function(on) print("自动领:", on) end)
-createToggle("移动模式", false, function(on) print("移动模式:", on) end)
-createToggle("显示地图", false, function(on) print("显示地图:", on) end)
-createToggle("自动吃", false, function(on) print("自动吃:", on) end)
+-- ====== UI 内容（信号名要和 EV 的键一致）======
+local function addAuto()
+    addSection("自动")
+    createToggle("AutoFarm",    "自动刷",   false)
+    createToggle("AutoCollect", "自动收",   false)
+    createToggle("AutoClaim",   "自动领",   false)
+    createToggle("MoveMode",    "移动模式", false)
+    createToggle("ShowMap",     "显示地图", false)
+    createToggle("AutoEat",     "自动吃",   false)
+end
 
-addSection("升级")
-createToggle("大小", false, function(on) print("升级-大小:", on) end)
-createToggle("移速", false, function(on) print("升级-移速:", on) end)
-createToggle("乘数", false, function(on) print("升级-乘数:", on) end)
-createToggle("吃速", false, function(on) print("升级-吃速:", on) end)
+local function addUpgrade()
+    addSection("升级")
+    createToggle("UpgSize",  "大小",   false)
+    createToggle("UpgSpeed", "移速",   false)
+    createToggle("UpgMulti", "乘数",   false)
+    createToggle("UpgEat",   "吃速",   false)
+end
 
-addSection("人物")
-createToggle("取消锚固", false, function(on) print("人物-取消锚固:", on) end)
-createToggle("边界保护", false, function(on) print("人物-边界保护:", on) end)
+local function addCharacter()
+    addSection("人物")
+    createToggle("KeepUnanchor","取消锚固", false)
+    createToggle("BoundProtect","边界保护", false)
+end
 
-addSection("其它")
-createButton("查看玩家数据", function() print("查看玩家数据：执行") end)
+local function addMisc()
+    addSection("其它")
+    createButton("ViewPlayerData","查看玩家数据")
+end
 
-print("[悬浮窗] Loaded (Top-most, Clip, Scroll). 点击名字=切换 / 整行可点。")
+addAuto(); addUpgrade(); addCharacter(); addMisc()
+
+print("[FloatingWin] UI ready. 所有交互通过 gui.Signals/* 抛出。")
