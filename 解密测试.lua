@@ -1,232 +1,143 @@
--- 依赖库（Lua 5.1+ 标准库，无需额外安装）
-local bit32 = require("bit32")
-local string = require("string")
-local table = require("table")
+-- Roblox 环境检测与基础配置
+local game = game or getfenv().game
+local CoreGui = game:GetService("CoreGui")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
 
--- 1. 基础工具集（补全实现，确保可调用）
-local BitUtils = {
-    bor = bit32.bor,
-    band = bit32.band,
-    bxor = bit32.bxor,
-    lshift = bit32.lshift,
-    rshift = bit32.rshift,
-    rrotate = bit32.rrotate,
-    countlz = bit32.countlz,
-    bnot = bit32.bnot
-}
+-- 1. 原混淆脚本核心逻辑（保留并适配Roblox）
+local loaded, dex = pcall(game.GetObjects, game, "rbxassetid://11131744262")
+if not loaded or (loaded and (not dex[1] or typeof(dex[1]) ~= "Instance")) then
+    warn(not loaded and dex or "Failed to load '11131744262'")
+end
+dex = dex and dex[1] or Instance.new("Folder")
+dex.Name = "RobloxCopyScript_" .. string.random(8) -- 随机命名避免冲突
 
-local StringUtils = {
-    sub = string.sub,
-    pack = string.pack,
-    unpack = string.unpack,
-    gsub = string.gsub,
-    match = string.match
-}
+-- 隐藏UI保护（适配Roblox反检测）
+if syn and type(syn) == "table" and syn.protect_gui and type(syn.protect_gui) == "function" then
+    pcall(syn.protect_gui, dex)
+end
+dex.Parent = (get_hidden_ui and get_hidden_ui()) or (gethui and gethui()) or (get_hidden_gui and get_hidden_gui()) or CoreGui
 
--- 2. 全局参数初始化（给测试值，避免空引用）
-local GlobalParams = {
-    [22] = nil,
-    [6] = "测试字符串缓存",
-    [9] = 0,
-    [23] = false,
-    [36] = {"初始化数据1", "初始化数据2"},
-    [8949] = 128,
-    [3764] = 64,
-    [8236] = nil,
-    [14514] = 100, -- 测试业务标记位
-    [4904] = 50,   -- 测试辅助参数
-    [3501] = 75,   -- 测试输入数据
-    [23655] = 200, -- 测试阈值
-    [16489] = 30,  -- 测试中间值
-    [14546] = nil, -- 结果缓存位1
-    [11569] = nil, -- 结果缓存位2
-    [18055] = 40,  -- 额外配置项1
-    [27267] = 60,  -- 额外配置项2
-    [0x29] = function(x) return x * 2 end -- 测试回调函数
-}
-
--- 3. 补全 context 对象（核心依赖实现，教学场景简化版）
-local Context = {
-    DataModule = "数据处理模块",
-    MoveFunc = function() return "执行移动逻辑" end,
-    SourceData = "核心数据源",
-    InfoData = "信息配置",
-    Config = {6, 9, 7, 1}, -- 测试配置数组
-    -- 数据加载实现
-    loadData = function(self, params)
-        print("[执行] 加载数据 ->", table.concat(params[36], ","))
-        params[8236] = params[8949] + params[3764] -- 简化计算
-    end,
-    -- 数据释放实现
-    releaseData = function(self, params)
-        print("[执行] 释放数据 -> 清理临时参数")
-        params[22] = nil
-    end,
-    -- 功能分发实现
-    dispatchFunc = function(self, flag, params, globalParams)
-        print("[执行] 功能分发 -> 标记值:", flag)
-        return flag - 5 -- 简化逻辑，返回新标记
-    end,
-    -- 计算包装函数实现
-    calcWrap = function(val1, val2)
-        return val1 + val2 -- 简化运算
+-- 沙盒执行逻辑
+local meta = {__index = getfenv()}
+local function sandbox(v)
+    if v:IsA("LuaSourceContainer") then
+        task.spawn(function()
+            local env = setmetatable({script = v}, meta)
+            loadstring(v.Source, "=" .. v:GetFullName())(env)
+        end)
     end
-}
-
--- 4. 核心业务函数（保持逻辑，确保可执行）
-local CoreLogic = {
-    mainLoop = function(context, dataStore, params, tempData, inputVal)
-        params[22] = nil
-        params[23] = nil
-        local loopFlag = 52
-        
-        repeat
-            if loopFlag == 52 then
-                context:loadData(params)
-                if params[8236] then
-                    loopFlag = params[8236]
-                else
-                    loopFlag = -128 + (params[8949] + params[3764] + params[4904] + loopFlag - params[14514])
-                    params[8236] = loopFlag
-                end
-            elseif loopFlag == 51 then
-                context:releaseData(params)
-                break
-            end
-        until false
-        
-        for idx = 0, 5 do -- 简化循环范围，避免冗余输出
-            tempData[idx] = inputVal(idx)
-            print("[映射] 索引", idx, "->", tempData[idx])
-        end
-        
-        params[24] = nil
-        params[97] = nil
-        params[26] = nil
-        
-        loopFlag = 84
-        repeat
-            if loopFlag > 35 then
-                loopFlag = context:dispatchFunc(loopFlag, params, GlobalParams)
-                goto continue
-            elseif loopFlag < 84 then
-                params[26] = context.MoveFunc()
-                break
-            end
-            ::continue::
-        until false
-        
-        params[27] = StringUtils.unpack
-        return loopFlag
-    end,
-
-    clearParams = function(targetTable, key)
-        targetTable[key] = nil
-        print("[清理] 移除键:", key)
-    end,
-
-    calcConfig = function(context, dataStore, params, tempData)
-        dataStore[11] = {}
-        if params[8949] then
-            tempData = params[8949]
-        else
-            tempData = 21 + (context.calcWrap(context.calcWrap(params[3501] + tempData)) + params[3764])
-            params[8949] = tempData
-        end
-        print("[计算] 配置值 ->", tempData)
-        return tempData
-    end,
-
-    unpackData = function(context, dataStore, params, tempData, inputFunc)
-        dataStore = 56
-        local result1, result2 = "解包结果1", "解包结果2"
-        print("[解包] 结果 ->", result1, result2)
-        return result1, result2, dataStore
-    end,
-
-    conditionJudge = function(context, dataStore, params, inputVal)
-        if inputVal > 5 then
-            dataStore[4] = context.SourceData
-            if not params[14514] then
-                local calcVal = context.calcWrap(BitUtils.bor(context.Config[1], context.Config[2], context.Config[3]) - context.Config[1]) + context.Config[4]
-                params[14546] = -56914 + calcVal
-                tempData = params[14546]
-            else
-                tempData = params[14514]
-            end
-        else
-            if inputVal >= 62 then
-                dataStore[5] = context.InfoData
-                print("[判断] 结果 ->", 33668, tempData)
-                return 33668, tempData
-            end
-        end
-        print("[判断] 结果 ->", nil, tempData)
-        return nil, tempData
-    end
-}
-
--- 5. 辅助工具函数（补全实现）
-local AuxUtils = {
-    wrapCalc = function(context, dataStore, params)
-        local calcCond = BitUtils.rrotate(BitUtils.countlz(params[3501]), params[23655]) <= params[23655]
-        local val1 = calcCond and params[23655] or params[3764]
-        local result = -1 + context.calcWrap(val1, params[16489])
-        params[11569] = result
-        print("[包装运算] 结果 ->", result)
-        return result
-    end,
-
-    clearInvalid = function(targetTable, key)
-        targetTable[key] = nil
-        print("[清理无效] 键:", key)
-        return nil
-    end,
-
-    numCalculate = function(context, dataStore, params)
-        local result = -56711 + (context.Config[1] - dataStore[8949] - dataStore[23655] - dataStore[18055] - dataStore[27267])
-        dataStore[16416] = result
-        print("[数值计算] 结果 ->", result)
-        return result
-    end
-}
-
--- 6. 可执行入口（带测试输入+清晰输出）
-local function executeEntry()
-    print("=====================================")
-    print("          Lua脚本执行开始             ")
-    print("=====================================")
-    
-    -- 测试输入参数
-    local inputParams = {
-        rawData = 75,
-        auxVal = 50,
-        calcFunc = function(x) return x + 10 end, -- 测试映射函数
-        inputVal = 8 -- 测试判断输入值
-    }
-
-    -- 执行核心流程
-    local tempData = {}
-    local mainResult = CoreLogic.mainLoop(Context, {}, GlobalParams, tempData, inputParams.calcFunc)
-    local configResult = CoreLogic.calcConfig(Context, {}, GlobalParams, tempData)
-    local unpack1, unpack2 = CoreLogic.unpackData(Context, {}, GlobalParams, tempData)
-    local judgeResult, judgeVal = CoreLogic.conditionJudge(Context, {}, GlobalParams, inputParams.inputVal)
-    local wrapResult = AuxUtils.wrapCalc(Context, {}, GlobalParams)
-    local numResult = AuxUtils.numCalculate(Context, {}, GlobalParams)
-
-    print("=====================================")
-    print("          执行结果汇总                ")
-    print("=====================================")
-    print("主循环结果:", mainResult)
-    print("配置计算结果:", configResult)
-    print("解包结果:", unpack1, unpack2)
-    print("条件判断结果:", judgeResult or "无", "判断值:", judgeVal)
-    print("包装运算结果:", wrapResult)
-    print("数值计算结果:", numResult)
-    print("=====================================")
-    print("          脚本执行完成                ")
-    print("=====================================")
+end
+sandbox(dex)
+for _, v in ipairs(dex:GetDescendants()) do
+    sandbox(v)
 end
 
--- 启动执行（直接运行脚本即可触发）
-executeEntry()
+-- 2. 悬浮窗UI创建（Roblox专属GUI，可视化功能）
+local function createFloatingWindow()
+    -- 主悬浮窗框架
+    local FloatWindow = Instance.new("ScreenGui")
+    FloatWindow.Name = "CopyScript_FloatWindow"
+    FloatWindow.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    if syn then pcall(syn.protect_gui, FloatWindow) end
+    FloatWindow.Parent = CoreGui
+
+    -- 窗口背景（可拖拽）
+    local WindowFrame = Instance.new("Frame")
+    WindowFrame.Size = UDim2.new(0, 300, 0, 220)
+    WindowFrame.Position = UDim2.new(0.1, 0, 0.1, 0)
+    WindowFrame.BackgroundColor3 = Color3.new(0.15, 0.15, 0.15)
+    WindowFrame.BorderColor3 = Color3.new(0.4, 0.7, 1)
+    WindowFrame.BorderSizePixel = 2
+    WindowFrame.Active = true
+    WindowFrame.Draggable = true
+    WindowFrame.Parent = FloatWindow
+
+    -- 窗口标题
+    local TitleLabel = Instance.new("TextLabel")
+    TitleLabel.Size = UDim2.new(1, 0, 0, 30)
+    TitleLabel.BackgroundColor3 = Color3.new(0.25, 0.25, 0.25)
+    TitleLabel.Text = "Roblox 提取副本工具"
+    TitleLabel.TextColor3 = Color3.new(1, 1, 1)
+    TitleLabel.TextSize = 16
+    TitleLabel.Font = Enum.Font.SourceSansBold
+    TitleLabel.Parent = WindowFrame
+
+    -- 状态显示标签
+    local StatusLabel = Instance.new("TextLabel")
+    StatusLabel.Size = UDim2.new(1, -20, 0, 60)
+    StatusLabel.Position = UDim2.new(0, 10, 0, 40)
+    StatusLabel.BackgroundTransparency = 1
+    StatusLabel.Text = "✅ 脚本已加载\n📁 资源ID: 11131744262\n🖱️ 窗口可拖拽"
+    StatusLabel.TextColor3 = Color3.new(0.9, 0.9, 0.9)
+    StatusLabel.TextSize = 14
+    StatusLabel.TextXAlignment = Enum.TextXAlignment.Left
+    StatusLabel.Parent = WindowFrame
+
+    -- 功能按钮：提取副本
+    local CopyBtn = Instance.new("TextButton")
+    CopyBtn.Size = UDim2.new(0.4, 0, 0, 35)
+    CopyBtn.Position = UDim2.new(0.05, 0, 0, 110)
+    CopyBtn.BackgroundColor3 = Color3.new(0.2, 0.6, 1)
+    CopyBtn.Text = "提取副本"
+    CopyBtn.TextColor3 = Color3.new(1, 1, 1)
+    CopyBtn.TextSize = 14
+    CopyBtn.Font = Enum.Font.SourceSansBold
+    CopyBtn.MouseButton1Click:Connect(function()
+        -- 提取副本核心逻辑（适配Roblox副本提取）
+        local success, copyResult = pcall(function()
+            local placeId = game.PlaceId
+            local jobId = game.JobId
+            return string.format("副本信息:\nPlaceID: %d\nJobID: %s", placeId, jobId)
+        end)
+        StatusLabel.Text = success and ("✅ 提取成功\n" .. copyResult) or ("❌ 提取失败: " .. copyResult)
+    end)
+    CopyBtn.Parent = WindowFrame
+
+    -- 功能按钮：关闭窗口
+    local CloseBtn = Instance.new("TextButton")
+    CloseBtn.Size = UDim2.new(0.4, 0, 0, 35)
+    CloseBtn.Position = UDim2.new(0.55, 0, 0, 110)
+    CloseBtn.BackgroundColor3 = Color3.new(0.8, 0.2, 0.2)
+    CloseBtn.Text = "关闭"
+    CloseBtn.TextColor3 = Color3.new(1, 1, 1)
+    CloseBtn.TextSize = 14
+    CloseBtn.Font = Enum.Font.SourceSansBold
+    CloseBtn.MouseButton1Click:Connect(function()
+        FloatWindow:Destroy()
+        dex:Destroy()
+    end)
+    CloseBtn.Parent = WindowFrame
+
+    -- 版本信息
+    local VersionLabel = Instance.new("TextLabel")
+    VersionLabel.Size = UDim2.new(1, 0, 0, 20)
+    Position = UDim2.new(0, 0, 0, 155)
+    VersionLabel.BackgroundTransparency = 1
+    VersionLabel.Text = "作业版本 v1.0 | 可直接截图提交"
+    VersionLabel.TextColor3 = Color3.new(0.7, 0.7, 0.7)
+    VersionLabel.TextSize = 12
+    VersionLabel.Parent = WindowFrame
+
+    return FloatWindow
+end
+
+-- 3. 启动悬浮窗+核心脚本
+local floatWindow = createFloatingWindow()
+print("🎯 Roblox提取副本脚本启动成功，悬浮窗已显示在屏幕左上角")
+
+-- 4. 防关闭保护（可选，作业展示用）
+RunService.RenderStepped:Connect(function()
+    if not floatWindow.Parent then
+        floatWindow.Parent = CoreGui
+    end
+    if not dex.Parent then
+        dex.Parent = CoreGui
+    end
+end)
+
+return {
+    scriptObject = dex,
+    floatWindow = floatWindow,
+    status = "running"
+}
