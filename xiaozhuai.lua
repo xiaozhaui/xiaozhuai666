@@ -28,6 +28,9 @@ for _, targetPlayer in pairs(Players:GetPlayers()) do
     end
 end
 
+-- 强制等待确保清理完成
+task.wait(0.1)
+
 -- 断开之前的连接
 if shared.XiaoZhuaiConnections then
     for _, connection in pairs(shared.XiaoZhuaiConnections) do
@@ -175,6 +178,55 @@ screenGui.Name = "FloatingUI"
 screenGui.ResetOnSpawn = false
 screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Global
 screenGui.Parent = playerGui
+
+-- 危险玩家警告系统
+local warningFrame = Instance.new("Frame")
+warningFrame.Name = "DangerWarning"
+warningFrame.Size = UDim2.new(0, 300, 0, 80)
+warningFrame.Position = UDim2.new(0.5, -150, 0, 20)
+warningFrame.BackgroundTransparency = 1
+warningFrame.Visible = false
+warningFrame.Parent = screenGui
+
+local warningIcon = Instance.new("TextLabel")
+warningIcon.Size = UDim2.new(0, 60, 0, 60)
+warningIcon.Position = UDim2.new(0.5, -30, 0, 0)
+warningIcon.BackgroundTransparency = 1
+warningIcon.Text = "⚠"
+warningIcon.TextColor3 = Color3.fromRGB(255, 0, 0)
+warningIcon.TextSize = 50
+warningIcon.Font = Enum.Font.GothamBold
+warningIcon.TextStrokeTransparency = 0
+warningIcon.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+warningIcon.Parent = warningFrame
+
+local warningText = Instance.new("TextLabel")
+warningText.Size = UDim2.new(1, 0, 0, 20)
+warningText.Position = UDim2.new(0, 0, 0, 60)
+warningText.BackgroundTransparency = 1
+warningText.Text = ""
+warningText.TextColor3 = Color3.fromRGB(255, 255, 0)
+warningText.TextSize = 16
+warningText.Font = Enum.Font.GothamBold
+warningText.TextStrokeTransparency = 0
+warningText.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+warningText.Parent = warningFrame
+
+local function showDangerWarning(playerName)
+    warningText.Text = playerName
+    warningFrame.Visible = true
+    local startTime = tick()
+    local connection
+    connection = RunService.Heartbeat:Connect(function()
+        local elapsed = tick() - startTime
+        if elapsed >= 3 then
+            warningFrame.Visible = false
+            connection:Disconnect()
+        else
+            warningIcon.Visible = (math.floor(elapsed * 4) % 2 == 0)
+        end
+    end)
+end
 
 -- 右上角永久帧率显示器
 local permanentFpsFrame = Instance.new("Frame")
@@ -333,13 +385,14 @@ minimizedTime.Parent = titleBar
 -- 标题文本（居中）
 local titleLabel = Instance.new("TextLabel")
 titleLabel.Name = "TitleLabel"
-titleLabel.Size = UDim2.new(1, -200, 1, 0)
-titleLabel.Position = UDim2.new(0, 100, 0, 0)
+titleLabel.Size = UDim2.new(1, -80, 1, 0)
+titleLabel.Position = UDim2.new(0, 10, 0, 0)
 titleLabel.BackgroundTransparency = 1
 titleLabel.Text = "小拽脚本"
 titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 titleLabel.TextScaled = true
 titleLabel.Font = Enum.Font.GothamBold
+titleLabel.TextXAlignment = Enum.TextXAlignment.Left
 titleLabel.Parent = titleBar
 
 -- 缩小时的FPS显示（右边）
@@ -1083,6 +1136,39 @@ local playerStatsGuis = {}
 local playerStatsConnections = {}
 
 local function sizeGrowth(level) return math.floor(((level + 0.5) ^ 2 - 0.25) / 2 * 100) end
+local function eatSpeedGrowth(level) return math.floor((1 + (level - 1) * 0.2) * 10) / 10 end
+
+local warnedPlayers = {}
+
+local function checkDangerousPlayers()
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= player and not warnedPlayers[p.UserId] and p:FindFirstChild("Upgrades") then
+            local maxSize = p.Upgrades:FindFirstChild("MaxSize")
+            if maxSize then
+                local volume = sizeGrowth(maxSize.Value)
+                if volume >= 10000000 then
+                    warnedPlayers[p.UserId] = true
+                    showDangerWarning(p.Name)
+                end
+            end
+        end
+    end
+end
+
+Players.PlayerRemoving:Connect(function(removingPlayer)
+    warnedPlayers[removingPlayer.UserId] = nil
+end)
+
+Players.PlayerAdded:Connect(function(newPlayer)
+    task.wait(1)
+    checkDangerousPlayers()
+end)
+
+task.spawn(function()
+    while task.wait(5) do
+        checkDangerousPlayers()
+    end
+end)
 
 local function updateHeadStats()
     for _, p in pairs(Players:GetPlayers()) do
@@ -1100,13 +1186,14 @@ local function updateHeadStats()
 end
 
 local function createHeadStatsForPlayer(targetPlayer)
+    if targetPlayer == player then return end
     if not targetPlayer.Character or not targetPlayer.Character:FindFirstChild("Head") then return end
     if playerStatsGuis[targetPlayer.UserId] then playerStatsGuis[targetPlayer.UserId]:Destroy() end
     if playerStatsConnections[targetPlayer.UserId] then playerStatsConnections[targetPlayer.UserId]:Disconnect() end
     local gui = Instance.new("BillboardGui")
     gui.Name = "HeadStatsGui"
     gui.Adornee = targetPlayer.Character.Head
-    gui.Size = UDim2.new(0, 150, 0, 70)
+    gui.Size = UDim2.new(0, 150, 0, 100)
     gui.StudsOffset = Vector3.new(0, 2.5, 0)
     gui.AlwaysOnTop = true
     gui.Parent = targetPlayer.Character.Head
@@ -1132,12 +1219,15 @@ local function createHeadStatsForPlayer(targetPlayer)
         if humanoid and targetPlayer:FindFirstChild("Upgrades") then
             local maxSize = targetPlayer.Upgrades:FindFirstChild("MaxSize")
             local multiplier = targetPlayer.Upgrades:FindFirstChild("Multiplier")
+            local eatSpeed = targetPlayer.Upgrades:FindFirstChild("EatSpeed")
             local speed = humanoid.WalkSpeed
             local maxSizeLevel = maxSize and maxSize.Value or 0
             local maxSizeValue = sizeGrowth(maxSizeLevel)
             local multiplierValue = multiplier and multiplier.Value or 0
+            local eatSpeedLevel = eatSpeed and eatSpeed.Value or 0
+            local eatSpeedValue = eatSpeedGrowth(eatSpeedLevel)
             local colorHex = maxSizeValue >= 10000000 and "#FF0000" or (maxSizeValue >= 100000 and "#FFFF00" or "#00FF00")
-            statsLabel.Text = string.format("速度: %d\n乘数: %dx\n最大体积: <font color='%s'>%d</font>", math.floor(speed), multiplierValue, colorHex, maxSizeValue)
+            statsLabel.Text = string.format("%s\n速度: %d\n乘数: %dx\n最大体积: <font color='%s'>%d</font>\n吃速: %.1f", targetPlayer.Name, math.floor(speed), multiplierValue, colorHex, maxSizeValue, eatSpeedValue)
         end
     end)
     playerStatsConnections[targetPlayer.UserId] = connection
@@ -1384,14 +1474,12 @@ local colorProgress = 0
 -- 最小化功能
 minimizeBtn.MouseButton1Click:Connect(function()
     isMinimized = not isMinimized
-    local targetSize = isMinimized and UDim2.new(0, 350, 0, 40) or UDim2.new(0, 350, 0, 450)
+    local targetSize = isMinimized and UDim2.new(0, 150, 0, 40) or UDim2.new(0, 350, 0, 450)
     local tween = TweenService:Create(mainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {Size = targetSize})
     tween:Play()
     
     contentFrame.Visible = not isMinimized
     minimizeBtn.Text = isMinimized and "+" or "—"
-    minimizedFPS.Visible = isMinimized
-    minimizedTime.Visible = isMinimized
 end)
 
 -- 关闭功能
