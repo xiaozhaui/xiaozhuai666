@@ -1227,7 +1227,8 @@ local function createHeadStatsForPlayer(targetPlayer)
             local eatSpeedLevel = eatSpeed and eatSpeed.Value or 0
             local eatSpeedValue = eatSpeedGrowth(eatSpeedLevel)
             local colorHex = maxSizeValue >= 10000000 and "#FF0000" or (maxSizeValue >= 100000 and "#FFFF00" or "#00FF00")
-            statsLabel.Text = string.format("%s\n速度: %d\n乘数: %dx\n最大体积: <font color='%s'>%d</font>\n吃速: %.1f", targetPlayer.Name, math.floor(speed), multiplierValue, colorHex, maxSizeValue, eatSpeedValue)
+            -- 修改点: 删除了 targetPlayer.Name (玩家名字)
+            statsLabel.Text = string.format("速度: %d\n乘数: %dx\n最大体积: <font color='%s'>%d</font>\n吃速: %.1f", math.floor(speed), multiplierValue, colorHex, maxSizeValue, eatSpeedValue)
         end
     end)
     playerStatsConnections[targetPlayer.UserId] = connection
@@ -1269,11 +1270,13 @@ for _, existingPlayer in pairs(Players:GetPlayers()) do
     end)
 end
 
+-- ========== 修改后的自定义名称功能 ==========
 createSmallButton("自定义名称", Color3.fromRGB(255, 165, 0), "📝", UDim2.new(0, 170, 0, 50), function()
     if not screenGui:FindFirstChild("NameWindow") then
         local nameWindow = Instance.new("Frame")
         nameWindow.Name = "NameWindow"
-        nameWindow.Size = UDim2.new(0, 320, 0, 280)
+        -- 修改点1: 再次增加窗口总高度 (440)
+        nameWindow.Size = UDim2.new(0, 320, 0, 440)
         nameWindow.Position = UDim2.new(0, 370, 0, 20)
         nameWindow.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
         nameWindow.BorderSizePixel = 0
@@ -1314,6 +1317,7 @@ createSmallButton("自定义名称", Color3.fromRGB(255, 165, 0), "📝", UDim2.
         nameCloseBtnCorner.CornerRadius = UDim.new(0, 3)
         nameCloseBtnCorner.Parent = nameCloseBtn
         nameCloseBtn.MouseButton1Click:Connect(function() nameWindow:Destroy() end)
+        
         local sizeLabel = Instance.new("TextLabel")
         sizeLabel.Size = UDim2.new(1, -20, 0, 25)
         sizeLabel.Position = UDim2.new(0, 10, 0, 45)
@@ -1324,6 +1328,7 @@ createSmallButton("自定义名称", Color3.fromRGB(255, 165, 0), "📝", UDim2.
         sizeLabel.Font = Enum.Font.GothamBold
         sizeLabel.TextXAlignment = Enum.TextXAlignment.Left
         sizeLabel.Parent = nameWindow
+        
         local sizeSlider = Instance.new("Frame")
         sizeSlider.Size = UDim2.new(1, -20, 0, 30)
         sizeSlider.Position = UDim2.new(0, 10, 0, 75)
@@ -1333,6 +1338,7 @@ createSmallButton("自定义名称", Color3.fromRGB(255, 165, 0), "📝", UDim2.
         local sizeSliderCorner = Instance.new("UICorner")
         sizeSliderCorner.CornerRadius = UDim.new(0, 5)
         sizeSliderCorner.Parent = sizeSlider
+        
         for i, size in ipairs({8, 10, 12, 14, 16, 18}) do
             local sizeBtn = Instance.new("TextButton")
             sizeBtn.Size = UDim2.new(0, 45, 0, 25)
@@ -1358,6 +1364,7 @@ createSmallButton("自定义名称", Color3.fromRGB(255, 165, 0), "📝", UDim2.
                 sizeBtn.BackgroundColor3 = Color3.fromRGB(40, 167, 69)
             end)
         end
+        
         local toggleFrame = Instance.new("Frame")
         toggleFrame.Size = UDim2.new(1, -20, 0, 40)
         toggleFrame.Position = UDim2.new(0, 10, 0, 115)
@@ -1407,6 +1414,7 @@ createSmallButton("自定义名称", Color3.fromRGB(255, 165, 0), "📝", UDim2.
             end
             toggleHeadStats(showHeadStats)
         end)
+        
         local colorLabel = Instance.new("TextLabel")
         colorLabel.Size = UDim2.new(1, -20, 0, 25)
         colorLabel.Position = UDim2.new(0, 10, 0, 165)
@@ -1417,19 +1425,33 @@ createSmallButton("自定义名称", Color3.fromRGB(255, 165, 0), "📝", UDim2.
         colorLabel.Font = Enum.Font.GothamBold
         colorLabel.TextXAlignment = Enum.TextXAlignment.Left
         colorLabel.Parent = nameWindow
+        
         local colorFrame = Instance.new("Frame")
-        colorFrame.Size = UDim2.new(1, -20, 0, 80)
+        -- 修改点2: 再次增加颜色区域高度 (240)
+        colorFrame.Size = UDim2.new(1, -20, 0, 240)
         colorFrame.Position = UDim2.new(0, 10, 0, 195)
         colorFrame.BackgroundTransparency = 1
         colorFrame.Parent = nameWindow
-        local headColors = {{255,255,255,"白色"},{255,100,100,"红色"},{100,255,100,"绿色"},{100,200,255,"蓝色"},{255,255,100,"黄色"},{255,150,255,"紫色"}}
+        
+        -- 扩充颜色列表到18种
+        local headColors = {
+            {255,255,255,"白色"}, {255,100,100,"红色"}, {100,255,100,"绿色"}, 
+            {100,200,255,"蓝色"}, {255,255,100,"黄色"}, {255,150,255,"紫色"},
+            {0,0,0,"黑色"},     {0,255,255,"青色"}, {255,165,0,"橙色"},
+            {255,105,180,"粉色"}, {128,0,128,"深紫"}, {255,215,0,"金色"},
+            {50,205,50,"酸橙"}, {220,20,60,"深红"}, {30,144,255,"天蓝"},
+            {238,130,238,"紫罗兰"},{169,169,169,"灰色"}, {255,250,205,"柠檬绸"}
+        }
+        
         for i, c in ipairs(headColors) do
             local colorBtn = Instance.new("TextButton")
             colorBtn.Size = UDim2.new(0, 95, 0, 35)
             colorBtn.Position = UDim2.new(0, ((i-1) % 3) * 100, 0, math.floor((i-1) / 3) * 40)
             colorBtn.BackgroundColor3 = Color3.fromRGB(c[1], c[2], c[3])
             colorBtn.Text = c[4]
-            colorBtn.TextColor3 = Color3.fromRGB(0, 0, 0)
+            -- 智能判断文字颜色：深色背景用白色文字，浅色背景用黑色文字
+            local brightness = (c[1] * 299 + c[2] * 587 + c[3] * 114) / 1000
+            colorBtn.TextColor3 = brightness < 128 and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(0, 0, 0)
             colorBtn.TextSize = 12
             colorBtn.Font = Enum.Font.Gotham
             colorBtn.BorderSizePixel = 0
@@ -1443,6 +1465,7 @@ createSmallButton("自定义名称", Color3.fromRGB(255, 165, 0), "📝", UDim2.
                 updateHeadStats()
             end)
         end
+        
         Players.PlayerRemoving:Connect(function(removingPlayer)
             if playerStatsGuis[removingPlayer.UserId] then playerStatsGuis[removingPlayer.UserId]:Destroy() playerStatsGuis[removingPlayer.UserId] = nil end
             if playerStatsConnections[removingPlayer.UserId] then playerStatsConnections[removingPlayer.UserId]:Disconnect() playerStatsConnections[removingPlayer.UserId] = nil end
@@ -2149,6 +2172,3 @@ buttonFrame.Size = UDim2.new(1, 0, 0, 255)
 createSmallButton("重置功能", Color3.fromRGB(220, 53, 69), "🔄", UDim2.new(0, 87.5, 0, eatWorldY + 90), function()
     resetAllFeatures()
 end)
-
-
-
