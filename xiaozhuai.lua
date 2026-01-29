@@ -10,6 +10,256 @@ local HttpService = game:GetService("HttpService")
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
+-- 白名单系统
+local whitelist = {
+    "xiaozhuai666",
+    "xiaozhuai778",
+    "CninaNo1rewq",
+    "SBB_1234。",
+    "zhenghonghao345",
+    "91_SBCCB",
+    "ipoo2022",
+    "GOVCLDX",
+    "zydang6699",
+    "zydang66999",
+    "zydang669999",
+    "sdfghjkplm5566",
+    "qw540889",
+    "das8836",
+    "KARDS932",
+    "91vip0837",
+    "skszthb",
+    "KARDS2391",   
+    }
+-- 验证状态变量
+local isWhitelisted = false
+
+-- 验证窗口函数
+local function showVerificationWindow()
+    -- 创建验证窗口
+    local verificationGui = Instance.new("ScreenGui")
+    verificationGui.Name = "VerificationWindow"
+    verificationGui.ResetOnSpawn = false
+    verificationGui.ZIndexBehavior = Enum.ZIndexBehavior.Global
+    verificationGui.Parent = playerGui
+    
+    -- 主窗口框架
+    local verificationFrame = Instance.new("Frame")
+    verificationFrame.Name = "VerificationFrame"
+    verificationFrame.Size = UDim2.new(0, 400, 0, 280)
+    verificationFrame.Position = UDim2.new(0.5, -200, 0.5, -140)
+    verificationFrame.BackgroundColor3 = Color3.fromRGB(50, 50, 80)
+    verificationFrame.BorderSizePixel = 0
+    verificationFrame.Active = true
+    verificationFrame.Draggable = true
+    verificationFrame.Parent = verificationGui
+    
+    -- 圆角效果
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 12)
+    corner.Parent = verificationFrame
+    
+    -- 边框效果
+    local border = Instance.new("UIStroke")
+    border.Color = Color3.fromRGB(100, 150, 255)
+    border.Thickness = 3
+    border.Parent = verificationFrame
+    
+    -- 标题栏
+    local titleBar = Instance.new("Frame")
+    titleBar.Size = UDim2.new(1, 0, 0, 40)
+    titleBar.Position = UDim2.new(0, 0, 0, 0)
+    titleBar.BackgroundColor3 = Color3.fromRGB(80, 80, 120)
+    titleBar.BorderSizePixel = 0
+    titleBar.Parent = verificationFrame
+    
+    local titleCorner = Instance.new("UICorner")
+    titleCorner.CornerRadius = UDim.new(0, 12)
+    titleCorner.Parent = titleBar
+    
+    -- 标题文本
+    local titleLabel = Instance.new("TextLabel")
+    titleLabel.Size = UDim2.new(1, -20, 1, 0)
+    titleLabel.Position = UDim2.new(0, 10, 0, 0)
+    titleLabel.BackgroundTransparency = 1
+    titleLabel.Text = "🔐 账号验证"
+    titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    titleLabel.TextSize = 18
+    titleLabel.Font = Enum.Font.GothamBold
+    titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+    titleLabel.Parent = titleBar
+    
+    -- 当前日期时间显示
+    local datetimeLabel = Instance.new("TextLabel")
+    datetimeLabel.Size = UDim2.new(1, -20, 0, 25)
+    datetimeLabel.Position = UDim2.new(0, 10, 0, 50)
+    datetimeLabel.BackgroundTransparency = 1
+    datetimeLabel.Text = ""
+    datetimeLabel.TextColor3 = Color3.fromRGB(255, 200, 100)
+    datetimeLabel.TextSize = 16
+    datetimeLabel.Font = Enum.Font.GothamBold
+    datetimeLabel.TextXAlignment = Enum.TextXAlignment.Left
+    datetimeLabel.Parent = verificationFrame
+    
+    -- 作者信息
+    local authorLabel = Instance.new("TextLabel")
+    authorLabel.Size = UDim2.new(1, -20, 0, 25)
+    authorLabel.Position = UDim2.new(0, 10, 0, 80)
+    authorLabel.BackgroundTransparency = 1
+    authorLabel.Text = "作者：小拽游戏用户名xiaozhuai666"
+    authorLabel.TextColor3 = Color3.fromRGB(100, 255, 200)
+    authorLabel.TextSize = 14
+    authorLabel.Font = Enum.Font.Gotham
+    authorLabel.TextXAlignment = Enum.TextXAlignment.Left
+    authorLabel.Parent = verificationFrame
+    
+    -- 欢迎信息
+    local welcomeLabel = Instance.new("TextLabel")
+    welcomeLabel.Size = UDim2.new(1, -20, 0, 25)
+    welcomeLabel.Position = UDim2.new(0, 10, 0, 105)
+    welcomeLabel.BackgroundTransparency = 1
+    welcomeLabel.Text = "欢迎使用小拽脚本"
+    welcomeLabel.TextColor3 = Color3.fromRGB(255, 255, 100)
+    welcomeLabel.TextSize = 16
+    welcomeLabel.Font = Enum.Font.GothamBold
+    welcomeLabel.TextXAlignment = Enum.TextXAlignment.Left
+    welcomeLabel.Parent = verificationFrame
+    
+    -- 白名单信息
+    local whitelistLabel = Instance.new("TextLabel")
+    whitelistLabel.Size = UDim2.new(1, -20, 0, 40)
+    whitelistLabel.Position = UDim2.new(0, 10, 0, 140)
+    whitelistLabel.BackgroundTransparency = 1
+    whitelistLabel.Text = "白名单用户：xiaozhuai666, xioazhuai778"
+    whitelistLabel.TextColor3 = Color3.fromRGB(200, 200, 255)
+    whitelistLabel.TextSize = 12
+    whitelistLabel.Font = Enum.Font.Gotham
+    whitelistLabel.TextXAlignment = Enum.TextXAlignment.Left
+    whitelistLabel.TextWrapped = true
+    whitelistLabel.Parent = verificationFrame
+    
+    -- 验证状态
+    local statusLabel = Instance.new("TextLabel")
+    statusLabel.Size = UDim2.new(1, -20, 0, 30)
+    statusLabel.Position = UDim2.new(0, 10, 0, 190)
+    statusLabel.BackgroundTransparency = 1
+    statusLabel.Text = "正在验证账号..."
+    statusLabel.TextColor3 = Color3.fromRGB(255, 255, 100)
+    statusLabel.TextSize = 16
+    statusLabel.Font = Enum.Font.GothamBold
+    statusLabel.TextXAlignment = Enum.TextXAlignment.Center
+    statusLabel.Parent = verificationFrame
+    
+    -- 关闭按钮
+    local closeBtn = Instance.new("TextButton")
+    closeBtn.Size = UDim2.new(0, 100, 0, 35)
+    closeBtn.Position = UDim2.new(0.5, -50, 1, -45)
+    closeBtn.BackgroundColor3 = Color3.fromRGB(220, 53, 69)
+    closeBtn.Text = "关闭"
+    closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    closeBtn.TextSize = 16
+    closeBtn.Font = Enum.Font.GothamBold
+    closeBtn.BorderSizePixel = 0
+    closeBtn.Parent = verificationFrame
+    
+    local closeCorner = Instance.new("UICorner")
+    closeCorner.CornerRadius = UDim.new(0, 8)
+    closeCorner.Parent = closeBtn
+    
+    -- 更新时间显示
+    local function updateDateTime()
+        local currentTime = os.date("%Y年%m月%d日 %I:%M:%S %p")
+        datetimeLabel.Text = "当前时间：" .. currentTime
+    end
+    
+    -- 验证账号
+    local function verifyAccount()
+        local playerName = player.Name
+        local displayName = player.DisplayName
+        
+        -- 检查白名单
+        isWhitelisted = false
+        for _, whitelistedName in ipairs(whitelist) do
+            if playerName == whitelistedName or displayName == whitelistedName then
+                isWhitelisted = true
+                break
+            end
+        end
+        
+        if isWhitelisted then
+            statusLabel.Text = "✅ 验证成功！欢迎使用脚本"
+            statusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+            
+            -- 验证成功后3秒自动关闭验证窗口
+            task.delay(3, function()
+                verificationGui:Destroy()
+            end)
+        else
+            statusLabel.Text = "❌ 验证失败！非白名单用户"
+            statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+            
+            -- 非白名单用户无法使用脚本
+            closeBtn.Text = "退出悬浮窗"
+            closeBtn.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+            
+            -- 验证失败后4秒自动关闭验证窗口
+            task.delay(4, function()
+                verificationGui:Destroy()
+            end)
+        end
+    end
+    
+    -- 按钮事件
+    closeBtn.MouseButton1Click:Connect(function()
+        if closeBtn.Text == "退出悬浮窗" then
+            -- 非白名单用户关闭验证窗口
+            verificationGui:Destroy()
+        else
+            verificationGui:Destroy()
+        end
+    end)
+    
+    -- 实时更新时间
+    local datetimeConnection
+    datetimeConnection = RunService.Heartbeat:Connect(function()
+        updateDateTime()
+    end)
+    
+    -- 开始验证
+    task.wait(1) -- 等待1秒显示窗口
+    verifyAccount()
+    
+    -- 返回验证结果
+    return verificationGui
+end
+
+-- 执行验证
+local verificationWindow = showVerificationWindow()
+
+-- 等待验证窗口完全关闭
+local function waitForVerificationWindowClose()
+    local startTime = tick()
+    while tick() - startTime < 10 do -- 最多等待10秒
+        -- 检查验证窗口是否还存在
+        if not verificationWindow or not verificationWindow.Parent then
+            return true -- 验证窗口已关闭
+        end
+        task.wait(0.1)
+    end
+    return false -- 超时
+end
+
+-- 等待验证窗口关闭
+local windowClosed = waitForVerificationWindowClose()
+
+-- 检查验证结果
+if not isWhitelisted then
+    print("❌ 验证失败，脚本停止执行")
+    return -- 停止脚本
+end
+
+print("✅ 验证成功，验证窗口已关闭，开始加载脚本功能")
+
 -- 清理上次注入的所有内容
 for _, gui in pairs(playerGui:GetChildren()) do
     if gui.Name == "FloatingUI" then
@@ -852,7 +1102,7 @@ speedWindowCorner.CornerRadius = UDim.new(0, 10)
 speedWindowCorner.Parent = speedWindow
 
 local speedWindowBorder = Instance.new("UIStroke")
-speedWindowBorder.Color = Color3.fromRGB(220, 53, 69)
+speedWindowBorder.Color = Color3.fromRGB(savedConfig.borderColor[1], savedConfig.borderColor[2], savedConfig.borderColor[3]) -- 使用保存的边框颜色
 speedWindowBorder.Thickness = 2
 speedWindowBorder.Parent = speedWindow
 
@@ -1010,7 +1260,7 @@ colorWindowCorner.CornerRadius = UDim.new(0, 10)
 colorWindowCorner.Parent = colorWindow
 
 local colorWindowBorder = Instance.new("UIStroke")
-colorWindowBorder.Color = Color3.fromRGB(138, 43, 226)
+colorWindowBorder.Color = Color3.fromRGB(savedConfig.borderColor[1], savedConfig.borderColor[2], savedConfig.borderColor[3]) -- 使用保存的边框颜色
 colorWindowBorder.Thickness = 2
 colorWindowBorder.Parent = colorWindow
 
@@ -1041,8 +1291,34 @@ local colorCloseBtnCorner = Instance.new("UICorner")
 colorCloseBtnCorner.CornerRadius = UDim.new(0, 3)
 colorCloseBtnCorner.Parent = colorCloseBtn
 
+-- 创建滚动框架用于颜色选择
+local scrollFrame = Instance.new("ScrollingFrame")
+scrollFrame.Size = UDim2.new(1, -10, 1, -40)
+scrollFrame.Position = UDim2.new(0, 5, 0, 35)
+scrollFrame.BackgroundTransparency = 1
+scrollFrame.BorderSizePixel = 0
+scrollFrame.ScrollBarThickness = 6
+scrollFrame.CanvasSize = UDim2.new(0, 0, 0, 0)  -- 会根据内容自动调整
+scrollFrame.Parent = colorWindow
+
+local scrollFrameCorner = Instance.new("UICorner")
+scrollFrameCorner.CornerRadius = UDim.new(0, 5)
+scrollFrameCorner.Parent = scrollFrame
+
+local layout = Instance.new("UIGridLayout")
+layout.CellSize = UDim2.new(0, 95, 0, 35)
+layout.CellPadding = UDim2.new(0, 5, 0, 5)
+layout.SortOrder = Enum.SortOrder.LayoutOrder
+layout.Parent = scrollFrame
+
+local padding = Instance.new("UIPadding")
+padding.PaddingLeft = UDim.new(0, 5)
+padding.PaddingTop = UDim.new(0, 5)
+padding.Parent = scrollFrame
+
 -- 更多颜色选择
 local colors = {
+    -- 基础颜色
     {Color3.fromRGB(100, 200, 255), "天空蓝"},
     {Color3.fromRGB(255, 100, 100), "樱花红"},
     {Color3.fromRGB(100, 255, 100), "翡翠绿"},
@@ -1054,30 +1330,199 @@ local colors = {
     {Color3.fromRGB(200, 255, 150), "青草绿"},
     {Color3.fromRGB(255, 200, 150), "蜜桃橙"},
     {Color3.fromRGB(150, 200, 255), "海洋蓝"},
-    {Color3.fromRGB(255, 150, 255), "梦幻紫"}
+    {Color3.fromRGB(255, 150, 255), "梦幻紫"},
+    
+    -- 更多流行颜色
+    {Color3.fromRGB(255, 255, 255), "纯白色"},
+    {Color3.fromRGB(0, 0, 0), "纯黑色"},
+    {Color3.fromRGB(128, 128, 128), "灰色"},
+    {Color3.fromRGB(192, 192, 192), "银色"},
+    {Color3.fromRGB(128, 0, 0), "深红"},
+    {Color3.fromRGB(128, 128, 0), "橄榄绿"},
+    {Color3.fromRGB(0, 128, 0), "森林绿"},
+    {Color3.fromRGB(128, 0, 128), "紫色"},
+    {Color3.fromRGB(0, 128, 128), "青色"},
+    {Color3.fromRGB(0, 0, 128), "海军蓝"},
+    {Color3.fromRGB(255, 165, 0), "橙色"},
+    {Color3.fromRGB(255, 192, 203), "粉色"},
+    {Color3.fromRGB(139, 69, 19), "棕色"},
+    {Color3.fromRGB(240, 230, 140), "卡其色"},
+    {Color3.fromRGB(173, 216, 230), "浅蓝"},
+    {Color3.fromRGB(144, 238, 144), "浅绿"},
+    {Color3.fromRGB(221, 160, 221), "梅红色"},
+    {Color3.fromRGB(255, 218, 185), "桃色"},
+    {Color3.fromRGB(255, 105, 180), "热粉色"},
+    {Color3.fromRGB(30, 144, 255), "道奇蓝"},
+    {Color3.fromRGB(0, 255, 255), "青色"},
+    {Color3.fromRGB(50, 205, 50), "石灰绿"},
+    {Color3.fromRGB(255, 20, 147), "深粉色"},
+    {Color3.fromRGB(0, 191, 255), "深天蓝"},
+    {Color3.fromRGB(218, 112, 214), "紫罗兰"},
+    {Color3.fromRGB(255, 105, 180), "浅粉色"},
+    {Color3.fromRGB(255, 182, 193), "浅粉红"},
+    {Color3.fromRGB(175, 238, 238), "浅青色"},
+    {Color3.fromRGB(152, 251, 152), "浅绿色"},
+    {Color3.fromRGB(176, 196, 222), "浅钢蓝"},
+    {Color3.fromRGB(230, 230, 250), "薰衣草"},
+    {Color3.fromRGB(255, 228, 225), "薄雾玫瑰"},
+    {Color3.fromRGB(250, 250, 210), "象牙白"},
+    {Color3.fromRGB(253, 245, 230), "亚麻色"},
+    {Color3.fromRGB(245, 255, 250), "蜜瓜色"},
+    {Color3.fromRGB(240, 255, 240), "蜜瓜白"},
+    {Color3.fromRGB(248, 248, 255), "幽灵白"},
+    {Color3.fromRGB(245, 245, 245), "烟白色"},
+    {Color3.fromRGB(220, 220, 220), "亮灰色"},
+    {Color3.fromRGB(105, 105, 105), "暗灰色"},
+    {Color3.fromRGB(47, 79, 79), "暗海绿"},
+    {Color3.fromRGB(119, 136, 153), "暗灰蓝"},
+    {Color3.fromRGB(112, 128, 144), "石板灰"},
+    {Color3.fromRGB(25, 25, 112), "中海蓝"},
+    {Color3.fromRGB(0, 0, 139), "深蓝色"},
+    {Color3.fromRGB(138, 43, 226), "蓝紫色"},
+    {Color3.fromRGB(75, 0, 130), "深紫色"},
+    {Color3.fromRGB(123, 104, 238), "中紫色"},
+    {Color3.fromRGB(147, 112, 219), "中紫罗兰色"},
+    {Color3.fromRGB(186, 85, 211), "紫罗兰色"},
+    {Color3.fromRGB(238, 130, 238), "紫水晶色"},
+    {Color3.fromRGB(216, 191, 216), "苍白紫罗兰色"},
+    {Color3.fromRGB(255, 0, 255), "洋红色"},
+    {Color3.fromRGB(255, 20, 147), "深粉色"},
+    {Color3.fromRGB(255, 105, 180), "热粉色"},
+    {Color3.fromRGB(199, 21, 133), "深粉色"},
+    {Color3.fromRGB(219, 112, 147), "苍白紫红色"},
+    {Color3.fromRGB(255, 182, 193), "浅粉红"},
+    {Color3.fromRGB(255, 192, 203), "粉色"},
+    {Color3.fromRGB(255, 160, 122), "浅珊瑚色"},
+    {Color3.fromRGB(240, 128, 128), "淡珊瑚色"},
+    {Color3.fromRGB(233, 150, 122), "浅鲑鱼色"},
+    {Color3.fromRGB(250, 128, 114), "鲑鱼色"},
+    {Color3.fromRGB(255, 99, 71), "番茄色"},
+    {Color3.fromRGB(255, 69, 0), "橙红色"},
+    {Color3.fromRGB(255, 140, 0), "深橙色"},
+    {Color3.fromRGB(255, 165, 0), "橙色"},
+    {Color3.fromRGB(255, 215, 0), "金色"},
+    {Color3.fromRGB(238, 232, 170), "淡金色"},
+    {Color3.fromRGB(189, 183, 107), "深卡其色"},
+    {Color3.fromRGB(240, 230, 140), "卡其色"},
+    {Color3.fromRGB(230, 230, 0), "橄榄色"},
+    {Color3.fromRGB(184, 134, 11), "暗金黄色"},
+    {Color3.fromRGB(255, 255, 0), "黄色"},
+    {Color3.fromRGB(154, 205, 50), "黄绿色"},
+    {Color3.fromRGB(85, 107, 47), "橄榄土褐色"},
+    {Color3.fromRGB(107, 142, 35), "橄榄军服绿"},
+    {Color3.fromRGB(128, 128, 0), "橄榄色"},
+    {Color3.fromRGB(124, 252, 0), "草绿色"},
+    {Color3.fromRGB(0, 255, 0), "纯绿色"},
+    {Color3.fromRGB(34, 139, 34), "森林绿"},
+    {Color3.fromRGB(0, 250, 154), "春绿色"},
+    {Color3.fromRGB(0, 255, 127), "春天绿"},
+    {Color3.fromRGB(143, 188, 143), "暗海绿"},
+    {Color3.fromRGB(46, 139, 87), "海绿色"},
+    {Color3.fromRGB(60, 179, 113), "中海绿"},
+    {Color3.fromRGB(32, 178, 170), "浅海绿"},
+    {Color3.fromRGB(0, 128, 128), "青色"},
+    {Color3.fromRGB(0, 206, 209), "深青色"},
+    {Color3.fromRGB(72, 209, 204), "中青色"},
+    {Color3.fromRGB(64, 224, 208), "碧绿色"},
+    {Color3.fromRGB(0, 139, 139), "深青色"},
+    {Color3.fromRGB(0, 0, 255), "纯蓝色"},
+    {Color3.fromRGB(30, 144, 255), "道奇蓝"},
+    {Color3.fromRGB(135, 206, 250), "浅天蓝"},
+    {Color3.fromRGB(135, 206, 235), "天空蓝"},
+    {Color3.fromRGB(70, 130, 180), "钢蓝色"},
+    {Color3.fromRGB(176, 196, 222), "浅钢蓝"},
+    {Color3.fromRGB(100, 149, 237), "玉米花蓝"},
+    {Color3.fromRGB(25, 25, 112), "中海蓝"},
+    {Color3.fromRGB(0, 0, 139), "深蓝色"},
+    {Color3.fromRGB(0, 0, 128), "海军蓝"},
+    {Color3.fromRGB(240, 248, 255), "爱丽丝蓝"},
+    {Color3.fromRGB(230, 240, 250), "钢青色"},
+    {Color3.fromRGB(255, 240, 245), "雪花色"},
+    {Color3.fromRGB(248, 248, 255), "幽灵白"},
+    {Color3.fromRGB(245, 245, 245), "烟白色"},
+    {Color3.fromRGB(255, 250, 250), "雪白色"}
 }
 
 for i, colorData in ipairs(colors) do
     local colorBtn = Instance.new("TextButton")
-    colorBtn.Size = UDim2.new(0, 95, 0, 35)
-    colorBtn.Position = UDim2.new(0, 10 + ((i-1) % 3) * 105, 0, 40 + math.floor((i-1) / 3) * 45)
     colorBtn.BackgroundColor3 = colorData[1]
     colorBtn.Text = colorData[2]
     colorBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
     colorBtn.TextSize = 10
     colorBtn.Font = Enum.Font.Gotham
     colorBtn.BorderSizePixel = 0
-    colorBtn.Parent = colorWindow
+    colorBtn.LayoutOrder = i  -- 设置布局顺序
+    colorBtn.Parent = scrollFrame
     
     local colorBtnCorner = Instance.new("UICorner")
     colorBtnCorner.CornerRadius = UDim.new(0, 5)
     colorBtnCorner.Parent = colorBtn
     
     colorBtn.MouseButton1Click:Connect(function()
+        -- 更新主窗口颜色
         mainFrame.BackgroundColor3 = colorData[1]
         titleBar.BackgroundColor3 = Color3.new(colorData[1].R * 0.8, colorData[1].G * 0.8, colorData[1].B * 0.8)
         infoFrame.BackgroundColor3 = Color3.new(colorData[1].R * 0.6, colorData[1].G * 0.6, colorData[1].B * 0.6)
         lightBorder.Color = colorData[1]
+        
+        -- 更新其他窗口颜色（除了飞行模式窗口）
+        if speedWindow then
+            -- 使用相同颜色作为速度窗口背景
+            speedWindow.BackgroundColor3 = colorData[1]
+            -- 更新速度窗口边框颜色
+            local speedWindowBorder = speedWindow:FindFirstChild("UIStroke")
+            if speedWindowBorder then
+                speedWindowBorder.Color = colorData[1]
+            end
+        end
+        
+        if colorWindow then
+            -- 使用相同颜色作为颜色窗口背景
+            colorWindow.BackgroundColor3 = colorData[1]
+            -- 更新颜色窗口边框颜色
+            local colorWindowBorder = colorWindow:FindFirstChild("UIStroke")
+            if colorWindowBorder then
+                colorWindowBorder.Color = colorData[1]
+            end
+        end
+        
+        -- 查找并更新名称窗口颜色
+        local nameWindow = screenGui:FindFirstChild("NameWindow")
+        if nameWindow then
+            -- 使用相同颜色作为名称窗口背景
+            nameWindow.BackgroundColor3 = colorData[1]
+            -- 更新名称窗口边框颜色
+            local nameWindowBorder = nameWindow:FindFirstChild("UIStroke")
+            if nameWindowBorder then
+                nameWindowBorder.Color = colorData[1] -- 使用主窗口边框颜色
+            end
+        end
+        
+        -- 查找并更新白名单窗口颜色
+        local whitelistFrame = screenGui:FindFirstChild("WhitelistWindow")
+        if whitelistFrame then
+            -- 使用相同颜色作为白名单窗口背景
+            whitelistFrame.BackgroundColor3 = colorData[1]
+            -- 更新白名单窗口边框颜色
+            local whitelistBorder = whitelistFrame:FindFirstChild("UIStroke")
+            if whitelistBorder then
+                whitelistBorder.Color = colorData[1]
+            end
+        end
+        
+        -- 查找并更新FPS位置窗口颜色
+        local fpsPosWindow = screenGui:FindFirstChild("FPSPositionWindow")
+        if fpsPosWindow then
+            -- 使用相同颜色作为FPS位置窗口背景
+            fpsPosWindow.BackgroundColor3 = colorData[1]
+            -- 更新FPS位置窗口边框颜色
+            local fpsPosBorder = fpsPosWindow:FindFirstChild("UIStroke")
+            if fpsPosBorder then
+                fpsPosBorder.Color = colorData[1]
+            end
+        end
+        
+        -- 保存配置
         savedConfig.mainFrameColor = {math.floor(colorData[1].R * 255), math.floor(colorData[1].G * 255), math.floor(colorData[1].B * 255)}
         savedConfig.titleBarColor = {math.floor(colorData[1].R * 0.8 * 255), math.floor(colorData[1].G * 0.8 * 255), math.floor(colorData[1].B * 0.8 * 255)}
         savedConfig.infoFrameColor = {math.floor(colorData[1].R * 0.6 * 255), math.floor(colorData[1].G * 0.6 * 255), math.floor(colorData[1].B * 0.6 * 255)}
@@ -1086,6 +1531,9 @@ for i, colorData in ipairs(colors) do
         print("颜色已更改为: " .. colorData[2])
     end)
 end
+
+-- 更新CanvasSize以适应所有颜色按钮
+scrollFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
 
 -- 创建两列按钮函数
 local function createSmallButton(text, color, icon, position, callback)
@@ -1316,7 +1764,7 @@ createSmallButton("自定义名称", Color3.fromRGB(255, 165, 0), "📝", UDim2.
         -- 修改点4: 增加窗口总高度 (440) 以容纳所有颜色按钮
         nameWindow.Size = UDim2.new(0, 320, 0, 440)
         nameWindow.Position = UDim2.new(0, 370, 0, 20)
-        nameWindow.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+        nameWindow.BackgroundColor3 = mainFrame.BackgroundColor3 -- 同步主窗口颜色
         nameWindow.BorderSizePixel = 0
         nameWindow.Visible = true
         nameWindow.Active = true
@@ -1329,7 +1777,7 @@ createSmallButton("自定义名称", Color3.fromRGB(255, 165, 0), "📝", UDim2.
         nameWindowCorner.CornerRadius = UDim.new(0, 10)
         nameWindowCorner.Parent = nameWindow
         local nameWindowBorder = Instance.new("UIStroke")
-        nameWindowBorder.Color = Color3.fromRGB(255, 165, 0)
+        nameWindowBorder.Color = lightBorder.Color -- 使用主窗口边框颜色
         nameWindowBorder.Thickness = 2
         nameWindowBorder.Parent = nameWindow
         createResizeHandle(nameWindow)
@@ -2210,6 +2658,271 @@ buttonFrame.Size = UDim2.new(1, 0, 0, 255)
 -- 将重置功能按钮横向排到FPS位置按钮前方并保持同一行
 createSmallButton("重置功能", Color3.fromRGB(220, 53, 69), "🔄", UDim2.new(0, 5, 0, eatWorldY + 90), function()
     resetAllFeatures()
+end)
+
+-- 白名单管理功能按钮
+createSmallButton("白名单", Color3.fromRGB(100, 150, 255), "👥", UDim2.new(0, 170, 0, eatWorldY + 90), function()
+    -- 创建白名单管理窗口
+    local whitelistGui = Instance.new("ScreenGui")
+    whitelistGui.Name = "WhitelistManager"
+    whitelistGui.ResetOnSpawn = false
+    whitelistGui.ZIndexBehavior = Enum.ZIndexBehavior.Global
+    whitelistGui.Parent = playerGui
+    
+    -- 主窗口框架
+    local whitelistFrame = Instance.new("Frame")
+    whitelistFrame.Name = "WhitelistFrame"
+    whitelistFrame.Size = UDim2.new(0, 450, 0, 400)
+    whitelistFrame.Position = UDim2.new(0.5, -225, 0.5, -200)
+    whitelistFrame.BackgroundColor3 = Color3.fromRGB(50, 50, 80)
+    whitelistFrame.BorderSizePixel = 0
+    whitelistFrame.Active = true
+    whitelistFrame.Draggable = true
+    whitelistFrame.Parent = whitelistGui
+    
+    -- 圆角效果
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 12)
+    corner.Parent = whitelistFrame
+    
+    -- 边框效果
+    local border = Instance.new("UIStroke")
+    border.Color = Color3.fromRGB(100, 150, 255)
+    border.Thickness = 3
+    border.Parent = whitelistFrame
+    
+    -- 标题栏
+    local titleBar = Instance.new("Frame")
+    titleBar.Size = UDim2.new(1, 0, 0, 40)
+    titleBar.Position = UDim2.new(0, 0, 0, 0)
+    titleBar.BackgroundColor3 = Color3.fromRGB(80, 80, 120)
+    titleBar.BorderSizePixel = 0
+    titleBar.Parent = whitelistFrame
+    
+    local titleCorner = Instance.new("UICorner")
+    titleCorner.CornerRadius = UDim.new(0, 12)
+    titleCorner.Parent = titleBar
+    
+    -- 标题文本
+    local titleLabel = Instance.new("TextLabel")
+    titleLabel.Size = UDim2.new(1, -20, 1, 0)
+    titleLabel.Position = UDim2.new(0, 10, 0, 0)
+    titleLabel.BackgroundTransparency = 1
+    titleLabel.Text = "👥 白名单管理"
+    titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    titleLabel.TextSize = 18
+    titleLabel.Font = Enum.Font.GothamBold
+    titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+    titleLabel.Parent = titleBar
+    
+    -- 关闭按钮
+    local closeBtn = Instance.new("TextButton")
+    closeBtn.Size = UDim2.new(0, 30, 0, 30)
+    closeBtn.Position = UDim2.new(1, -35, 0, 5)
+    closeBtn.BackgroundColor3 = Color3.fromRGB(220, 53, 69)
+    closeBtn.Text = "✕"
+    closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    closeBtn.TextScaled = true
+    closeBtn.Font = Enum.Font.GothamBold
+    closeBtn.BorderSizePixel = 0
+    closeBtn.Parent = titleBar
+    
+    local closeCorner = Instance.new("UICorner")
+    closeCorner.CornerRadius = UDim.new(0, 6)
+    closeCorner.Parent = closeBtn
+    
+    -- 内容区域
+    local contentFrame = Instance.new("Frame")
+    contentFrame.Size = UDim2.new(1, -20, 1, -60)
+    contentFrame.Position = UDim2.new(0, 10, 0, 50)
+    contentFrame.BackgroundTransparency = 1
+    contentFrame.Parent = whitelistFrame
+    
+    -- 当前白名单列表标题
+    local listTitle = Instance.new("TextLabel")
+    listTitle.Size = UDim2.new(1, 0, 0, 25)
+    listTitle.Position = UDim2.new(0, 0, 0, 10)
+    listTitle.BackgroundTransparency = 1
+    listTitle.Text = "当前白名单用户："
+    listTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+    listTitle.TextSize = 16
+    listTitle.Font = Enum.Font.GothamBold
+    listTitle.TextXAlignment = Enum.TextXAlignment.Left
+    listTitle.Parent = contentFrame
+    
+    -- 白名单列表显示
+    local whitelistList = Instance.new("TextLabel")
+    whitelistList.Size = UDim2.new(1, 0, 0, 80)
+    whitelistList.Position = UDim2.new(0, 0, 0, 35)
+    whitelistList.BackgroundTransparency = 1
+    whitelistList.Text = table.concat(whitelist, ", ")
+    whitelistList.TextColor3 = Color3.fromRGB(200, 255, 200)
+    whitelistList.TextSize = 14
+    whitelistList.Font = Enum.Font.Gotham
+    whitelistList.TextXAlignment = Enum.TextXAlignment.Left
+    whitelistList.TextWrapped = true
+    whitelistList.Parent = contentFrame
+    
+    -- 添加新用户区域
+    local addTitle = Instance.new("TextLabel")
+    addTitle.Size = UDim2.new(1, 0, 0, 25)
+    addTitle.Position = UDim2.new(0, 0, 0, 125)
+    addTitle.BackgroundTransparency = 1
+    addTitle.Text = "添加新用户："
+    addTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+    addTitle.TextSize = 16
+    addTitle.Font = Enum.Font.GothamBold
+    addTitle.TextXAlignment = Enum.TextXAlignment.Left
+    addTitle.Parent = contentFrame
+    
+    -- 用户名输入框
+    local usernameInput = Instance.new("TextBox")
+    usernameInput.Size = UDim2.new(0.7, 0, 0, 35)
+    usernameInput.Position = UDim2.new(0, 0, 0, 155)
+    usernameInput.BackgroundColor3 = Color3.fromRGB(40, 40, 60)
+    usernameInput.TextColor3 = Color3.fromRGB(255, 255, 255)
+    usernameInput.PlaceholderText = "输入用户名..."
+    usernameInput.PlaceholderColor3 = Color3.fromRGB(150, 150, 150)
+    usernameInput.TextSize = 14
+    usernameInput.Font = Enum.Font.Gotham
+    usernameInput.TextXAlignment = Enum.TextXAlignment.Left
+    usernameInput.Parent = contentFrame
+    
+    local inputCorner = Instance.new("UICorner")
+    inputCorner.CornerRadius = UDim.new(0, 6)
+    inputCorner.Parent = usernameInput
+    
+    -- 添加按钮
+    local addBtn = Instance.new("TextButton")
+    addBtn.Size = UDim2.new(0.25, 0, 0, 35)
+    addBtn.Position = UDim2.new(0.75, 10, 0, 155)
+    addBtn.BackgroundColor3 = Color3.fromRGB(40, 167, 69)
+    addBtn.Text = "添加"
+    addBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    addBtn.TextSize = 14
+    addBtn.Font = Enum.Font.GothamBold
+    addBtn.BorderSizePixel = 0
+    addBtn.Parent = contentFrame
+    
+    local addCorner = Instance.new("UICorner")
+    addCorner.CornerRadius = UDim.new(0, 6)
+    addCorner.Parent = addBtn
+    
+    -- 状态信息
+    local statusLabel = Instance.new("TextLabel")
+    statusLabel.Size = UDim2.new(1, 0, 0, 25)
+    statusLabel.Position = UDim2.new(0, 0, 0, 200)
+    statusLabel.BackgroundTransparency = 1
+    statusLabel.Text = ""
+    statusLabel.TextColor3 = Color3.fromRGB(255, 255, 100)
+    statusLabel.TextSize = 14
+    statusLabel.Font = Enum.Font.Gotham
+    statusLabel.TextXAlignment = Enum.TextXAlignment.Left
+    statusLabel.Parent = contentFrame
+    
+    -- 清空白名单按钮
+    local clearBtn = Instance.new("TextButton")
+    clearBtn.Size = UDim2.new(0.8, 0, 0, 35)
+    clearBtn.Position = UDim2.new(0.1, 0, 0, 235)
+    clearBtn.BackgroundColor3 = Color3.fromRGB(220, 53, 69)
+    clearBtn.Text = "清空白名单"
+    clearBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    clearBtn.TextSize = 14
+    clearBtn.Font = Enum.Font.GothamBold
+    clearBtn.BorderSizePixel = 0
+    clearBtn.Parent = contentFrame
+    
+    local clearCorner = Instance.new("UICorner")
+    clearCorner.CornerRadius = UDim.new(0, 6)
+    clearCorner.Parent = clearBtn
+    
+    -- 重置为默认按钮
+    local resetBtn = Instance.new("TextButton")
+    resetBtn.Size = UDim2.new(0.8, 0, 0, 35)
+    resetBtn.Position = UDim2.new(0.1, 0, 0, 280)
+    resetBtn.BackgroundColor3 = Color3.fromRGB(255, 193, 7)
+    resetBtn.Text = "重置为默认"
+    resetBtn.TextColor3 = Color3.fromRGB(0, 0, 0)
+    resetBtn.TextSize = 14
+    resetBtn.Font = Enum.Font.GothamBold
+    resetBtn.BorderSizePixel = 0
+    resetBtn.Parent = contentFrame
+    
+    local resetCorner = Instance.new("UICorner")
+    resetCorner.CornerRadius = UDim.new(0, 6)
+    resetCorner.Parent = resetBtn
+    
+    -- 更新白名单列表显示
+    local function updateWhitelistDisplay()
+        whitelistList.Text = table.concat(whitelist, ", ")
+    end
+    
+    -- 添加用户函数
+    local function addUser(username)
+        if username == "" then
+            statusLabel.Text = "❌ 用户名不能为空"
+            statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+            return
+        end
+        
+        -- 检查是否已存在
+        for _, existingUser in ipairs(whitelist) do
+            if existingUser == username then
+                statusLabel.Text = "❌ 用户已存在"
+                statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+                return
+            end
+        end
+        
+        -- 添加到白名单
+        table.insert(whitelist, username)
+        updateWhitelistDisplay()
+        statusLabel.Text = "✅ 用户添加成功：" .. username
+        statusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+        usernameInput.Text = ""
+    end
+    
+    -- 清空白名单函数
+    local function clearWhitelist()
+        whitelist = {}
+        updateWhitelistDisplay()
+        statusLabel.Text = "✅ 白名单已清空"
+        statusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+    end
+    
+    -- 重置为默认函数
+    local function resetToDefault()
+        whitelist = {"xiaozhuai666", "xioazhuai778", "xiaozhuai778"}
+        updateWhitelistDisplay()
+        statusLabel.Text = "✅ 已重置为默认白名单"
+        statusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+    end
+    
+    -- 按钮事件
+    closeBtn.MouseButton1Click:Connect(function()
+        whitelistGui:Destroy()
+    end)
+    
+    addBtn.MouseButton1Click:Connect(function()
+        addUser(usernameInput.Text)
+    end)
+    
+    usernameInput.FocusLost:Connect(function()
+        if usernameInput.Text ~= "" then
+            addUser(usernameInput.Text)
+        end
+    end)
+    
+    clearBtn.MouseButton1Click:Connect(function()
+        clearWhitelist()
+    end)
+    
+    resetBtn.MouseButton1Click:Connect(function()
+        resetToDefault()
+    end)
+    
+    -- 初始化显示
+    updateWhitelistDisplay()
 end)
 
 -- FPS位置调节功能
